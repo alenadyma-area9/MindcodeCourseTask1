@@ -1,0 +1,58 @@
+#root {
+	max-width: 1280px;
+	margin: 0 auto;
+	padding: 2rem;
+	text-align: center;
+}
+
+.app {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 2rem;
+}
+
+.saved-texts {
+	width: 100%;
+	text-align: left;
+	padding: 1rem;
+	min-height: 100px;
+}
+
+.input-container {
+	display: flex;
+	gap: 10px;
+	width: 100%;
+}
+
+.input-container input {
+	flex-grow: 1;
+	padding: 0.5rem;
+}
+
+.input-container button {
+	padding: 0.5rem 1rem;
+	position: relative;
+}
+
+.input-container button::after {
+	content: "Press Ctrl+Enter to add task";
+	position: absolute;
+	bottom: 100%;
+	left: 50%;
+	transform: translateX(-50%);
+	background-color: #333;
+	color: white;
+	padding: 0.5rem;
+	border-radius: 4px;
+	white-space: nowrap;
+	font-size: 0.875rem;
+	opacity: 0;
+	pointer-events: none;
+	transition: opacity 0.2s;
+	margin-bottom: 5px;
+}
+
+.input-container button:hover::after {
+	opacity: 1;
+}
