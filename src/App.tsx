@@ -18,7 +18,7 @@ function App() {
 
 	return (
 		<div className="app">
-			<h1>My TODO List</h1>
+			<h1>Daily Focus</h1>
 
 			{/* Input form for adding new text */}
 			<div className="input-container">
@@ -29,7 +29,7 @@ function App() {
 					onKeyDown={(e) => e.key === 'Enter' && e.ctrlKey && handleAdd()}
 					placeholder="What do you need to do?"
 				/>
-				<button onClick={handleAdd} title="Press Ctrl+Enter to add task">ADD</button>
+				<button onClick={handleAdd}>ADD TASK</button>
 			</div>
 
 			{/* Display the list of saved texts */}
