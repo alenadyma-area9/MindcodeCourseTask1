@@ -12,6 +12,10 @@
 	gap: 2rem;
 }
 
+.header {
+	width: 100%;
+}
+
 .app h1 {
 	font-family: 'Poppins', sans-serif;
 	font-size: 1.5rem;
@@ -20,11 +24,270 @@
 	margin: 0;
 }
 
+.header-date {
+	font-family: 'Poppins', sans-serif;
+	font-size: 0.875rem;
+	color: #999;
+	margin: 0.25rem 0 0 0;
+	text-align: left;
+}
+
+.tasks-section {
+	width: 100%;
+}
+
+.task-progress {
+	margin-bottom: 1.5rem;
+}
+
+.task-counter {
+	display: flex;
+	align-items: center;
+	font-family: 'Poppins', sans-serif;
+	font-size: 1rem;
+	margin-bottom: 0.5rem;
+	color: #666;
+}
+
+.incomplete-count {
+	font-weight: 600;
+	font-size: 1.25rem;
+	color: #FF6B6B;
+}
+
+.task-separator {
+	margin: 0 0.25rem;
+	color: #999;
+}
+
+.total-count {
+	font-weight: 600;
+	font-size: 1.25rem;
+	color: #333;
+}
+
+.progress-bar {
+	width: 100%;
+	height: 8px;
+	background: #e0e0e0;
+	border-radius: 10px;
+	overflow: hidden;
+}
+
+.progress-fill {
+	height: 100%;
+	background: linear-gradient(90deg, #4CAF50, #8BC34A);
+	transition: width 0.3s ease;
+	border-radius: 10px;
+}
+
+.tasks-section h2 {
+	font-family: 'Poppins', sans-serif;
+	font-size: 1.1rem;
+	font-weight: 600;
+	text-align: left;
+	margin: 0 0 1rem 0;
+	color: #333;
+}
+
 .saved-texts {
 	width: 100%;
 	text-align: left;
-	padding: 1rem;
+	padding: 0;
 	min-height: 100px;
+}
+
+.task-item {
+	display: flex;
+	align-items: center;
+	gap: 0.75rem;
+	padding: 0.75rem 1rem;
+	margin-bottom: 0.5rem;
+	background: white;
+	border: 1px solid #e0e0e0;
+	border-radius: 8px;
+	transition: all 0.2s;
+}
+
+.task-item:hover {
+	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.task-item.completed {
+	opacity: 0.6;
+	background: #f9f9f9;
+}
+
+.task-checkbox {
+	width: 20px;
+	height: 20px;
+	cursor: pointer;
+	flex-shrink: 0;
+	accent-color: #4CAF50;
+}
+
+.task-content {
+	display: flex;
+	align-items: flex-start;
+	gap: 0.75rem;
+	flex: 1;
+}
+
+.task-text-wrapper {
+	flex: 1;
+}
+
+.task-text {
+	margin: 0;
+	word-wrap: break-word;
+}
+
+.task-item.completed .task-text {
+	text-decoration: line-through;
+	color: #999;
+}
+
+.task-meta {
+	margin-top: 0.5rem;
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+	flex-wrap: wrap;
+}
+
+.task-category-tag {
+	display: inline-block;
+	padding: 0.25rem 0.5rem;
+	border-radius: 12px;
+	font-size: 0.7rem;
+	font-weight: 600;
+	color: white;
+	white-space: nowrap;
+}
+
+.task-reminder {
+	font-size: 0.75rem;
+	color: #999;
+	display: flex;
+	align-items: center;
+	gap: 0.25rem;
+}
+
+.task-reminder.urgent {
+	color: #FF9800;
+	font-weight: 500;
+}
+
+.task-reminder.overdue {
+	color: #F44336;
+	font-weight: 500;
+}
+
+.task-actions {
+	display: flex;
+	gap: 0.5rem;
+	align-items: center;
+}
+
+
+
+.action-btn {
+	background: none;
+	border: none;
+	font-size: 1.2rem;
+	cursor: pointer;
+	padding: 0.25rem 0.5rem;
+	border-radius: 4px;
+	transition: all 0.2s;
+	opacity: 0.7;
+}
+
+.action-btn:hover {
+	opacity: 1;
+	background: #f0f0f0;
+}
+
+.edit-btn:hover {
+	background: #e3f2fd;
+}
+
+.delete-btn:hover {
+	background: #ffebee;
+}
+
+/* Modal styles */
+.modal-overlay {
+	position: fixed;
+	top: 0;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	background: rgba(0, 0, 0, 0.5);
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	z-index: 1000;
+}
+
+.modal-content {
+	background: white;
+	padding: 2rem;
+	border-radius: 12px;
+	box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+	max-width: 400px;
+	width: 90%;
+	text-align: center;
+}
+
+.modal-content h3 {
+	margin: 0 0 1rem 0;
+	font-family: 'Poppins', sans-serif;
+	font-size: 1.25rem;
+	color: #333;
+}
+
+.modal-content p {
+	margin: 0 0 1.5rem 0;
+	color: #666;
+}
+
+.modal-actions {
+	display: flex;
+	gap: 1rem;
+	justify-content: flex-end;
+}
+
+.modal-btn {
+	padding: 0.5rem 1.5rem;
+	border: none;
+	border-radius: 6px;
+	font-weight: 600;
+	cursor: pointer;
+	transition: all 0.2s;
+}
+
+.yes-btn {
+	background: #ff6b6b;
+	color: white;
+}
+
+.yes-btn:hover {
+	background: #ff5252;
+}
+
+.no-btn {
+	background: #e0e0e0;
+	color: #333;
+}
+
+.no-btn:hover {
+	background: #d0d0d0;
+}
+
+.input-wrapper {
+	width: 100%;
+	position: relative;
+	z-index: 10;
 }
 
 .input-container {
@@ -36,6 +299,218 @@
 	overflow: visible;
 	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 	transition: box-shadow 0.2s;
+}
+
+.limit-warning {
+	color: #e57373;
+	font-size: 0.75rem;
+	margin: 0.25rem 0 0 0;
+	font-weight: 400;
+	text-align: left;
+}
+
+.selected-reminder {
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+	padding: 0.35rem 0.65rem;
+	background: #e3f2fd;
+	border-radius: 12px;
+	font-size: 0.75rem;
+	font-weight: 600;
+	color: #1976d2;
+}
+
+.selected-reminder .meta-remove {
+	color: #1976d2;
+}
+
+.selected-reminder .meta-remove:hover {
+	color: #ff6b6b;
+}
+
+/* Reminder Popup */
+.reminder-popup {
+	position: absolute;
+	top: calc(100% + 0.5rem);
+	left: 0;
+	background: white;
+	border: 1px solid #e0e0e0;
+	border-radius: 8px;
+	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+	padding: 1rem;
+	width: 100%;
+	max-width: 350px;
+	z-index: 1000;
+}
+
+.reminder-header {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	margin-bottom: 1rem;
+}
+
+.reminder-header h3 {
+	margin: 0;
+	font-family: 'Poppins', sans-serif;
+	font-size: 1rem;
+	font-weight: 600;
+	color: #333;
+}
+
+.close-popup {
+	background: none;
+	border: none;
+	font-size: 1.25rem;
+	cursor: pointer;
+	color: #999;
+	padding: 0;
+}
+
+.close-popup:hover {
+	color: #333;
+}
+
+.quick-reminders {
+	display: flex;
+	flex-direction: column;
+	gap: 0.5rem;
+	margin-bottom: 1rem;
+}
+
+.quick-reminders button {
+	padding: 0.75rem;
+	border: 1px solid #e0e0e0;
+	background: white;
+	border-radius: 6px;
+	cursor: pointer;
+	font-size: 0.875rem;
+	transition: all 0.2s;
+	text-align: left;
+}
+
+.quick-reminders button:hover {
+	background: #f5f5f5;
+	border-color: #4a90e2;
+}
+
+.custom-reminder {
+	padding-top: 1rem;
+	border-top: 1px solid #e0e0e0;
+}
+
+.custom-reminder label {
+	display: block;
+	font-size: 0.875rem;
+	font-weight: 600;
+	margin-bottom: 0.5rem;
+	color: #333;
+}
+
+.custom-reminder input {
+	padding: 0.5rem;
+	border: 1px solid #e0e0e0;
+	border-radius: 4px;
+	font-size: 0.875rem;
+	margin-right: 0.5rem;
+	margin-bottom: 0.5rem;
+}
+
+.custom-reminder button {
+	padding: 0.5rem 1rem;
+	background: #4a90e2;
+	color: white;
+	border: none;
+	border-radius: 4px;
+	cursor: pointer;
+	font-size: 0.875rem;
+	font-weight: 600;
+	transition: background 0.2s;
+}
+
+.custom-reminder button:hover:not(:disabled) {
+	background: #3a7bc8;
+}
+
+.custom-reminder button:disabled {
+	background: #ccc;
+	cursor: not-allowed;
+}
+
+/* Category Popup */
+.category-popup {
+	position: absolute;
+	top: calc(100% + 0.5rem);
+	left: 0;
+	background: white;
+	border: 1px solid #e0e0e0;
+	border-radius: 8px;
+	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+	padding: 1rem;
+	width: 100%;
+	max-width: 300px;
+	z-index: 1000;
+}
+
+.category-header {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	margin-bottom: 1rem;
+}
+
+.category-header h3 {
+	margin: 0;
+	font-family: 'Poppins', sans-serif;
+	font-size: 1rem;
+	font-weight: 600;
+	color: #333;
+}
+
+.category-list {
+	display: flex;
+	flex-direction: column;
+	gap: 0.5rem;
+	margin-bottom: 1rem;
+}
+
+.category-option {
+	display: flex;
+	align-items: center;
+	gap: 0.75rem;
+	padding: 0.75rem;
+	border: 1px solid #e0e0e0;
+	border-left: 4px solid;
+	background: white;
+	border-radius: 6px;
+	cursor: pointer;
+	font-size: 0.875rem;
+	transition: all 0.2s;
+	text-align: left;
+}
+
+.category-option:hover {
+	background: #f5f5f5;
+	transform: translateX(2px);
+}
+
+.category-icon {
+	font-size: 1.25rem;
+}
+
+.category-name {
+	font-weight: 500;
+	color: #333;
+}
+
+.category-tip {
+	font-size: 0.75rem;
+	color: #999;
+	margin: 0;
+	padding-top: 0.75rem;
+	border-top: 1px solid #e0e0e0;
+	text-align: center;
 }
 
 .input-container:focus-within {
@@ -53,11 +528,64 @@
 	border-radius: 8px 0 0 8px;
 }
 
+.input-meta {
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+	margin-top: 0.5rem;
+	flex-wrap: wrap;
+}
+
+.selected-category {
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+	padding: 0.35rem 0.65rem;
+	border-radius: 12px;
+	color: white;
+	font-size: 0.75rem;
+	font-weight: 600;
+}
+
+.meta-remove {
+	background: none;
+	border: none;
+	color: white;
+	cursor: pointer;
+	font-size: 0.875rem;
+	padding: 0;
+	opacity: 0.8;
+}
+
+.meta-remove:hover {
+	opacity: 1;
+}
+
 .input-container input::placeholder {
 	color: #999;
 }
 
-.input-container button {
+.input-container input:focus {
+	outline: none;
+}
+
+.reminder-btn,
+.category-btn {
+	padding: 0.75rem 1rem;
+	border: none;
+	background: transparent;
+	font-size: 1.2rem;
+	cursor: pointer;
+	transition: all 0.2s;
+	border-left: 1px solid #e0e0e0;
+}
+
+.reminder-btn:hover,
+.category-btn:hover {
+	background: #f5f5f5;
+}
+
+.input-container button:last-child {
 	padding: 0.75rem 1.5rem;
 	border: none;
 	background: #FF6B6B;
@@ -69,11 +597,11 @@
 	border-radius: 0 8px 8px 0;
 }
 
-.input-container button:hover {
+.input-container button:last-child:hover {
 	background: #FF5252;
 }
 
-.input-container button::after {
+.input-container button:last-child::after {
 	content: "Press Ctrl+Enter to add task";
 	position: absolute;
 	bottom: 100%;
@@ -93,11 +621,11 @@
 	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
 }
 
-.input-container button:hover::after {
+.input-container button:last-child:hover::after {
 	opacity: 1;
 }
 
-.input-container button::before {
+.input-container button:last-child::before {
 	content: "";
 	position: absolute;
 	bottom: 100%;
@@ -112,6 +640,6 @@
 	z-index: 1000;
 }
 
-.input-container button:hover::before {
+.input-container button:last-child:hover::before {
 	opacity: 1;
 }
