@@ -3,30 +3,32 @@ import { persist } from 'zustand/middleware';
 import { v4 as uuidv4 } from 'uuid';
 
 export type Category = 'Home' | 'Work' | 'Errands' | 'Personal' | 'Health' | 'Finance';
+export type RepeatOption = 'none' | 'daily' | 'weekly' | 'monthly' | 'weekdays';
 
 export interface Task {
 	id: string;
 	text: string;
 	completed: boolean;
 	reminder?: string;
+	repeat?: RepeatOption;
 	category?: Category;
 }
 
 interface TextState {
 	savedTexts: Task[];
-	addText: (newText: string, reminder?: string, category?: Category) => void;
+	addText: (newText: string, reminder?: string, category?: Category, repeat?: RepeatOption) => void;
 	deleteText: (id: string) => void;
 	toggleComplete: (id: string) => void;
-	updateText: (id: string, newText: string, reminder?: string, category?: Category) => void;
+	updateText: (id: string, newText: string, reminder?: string, category?: Category, repeat?: RepeatOption) => void;
 }
 
 const useTextStore = create<TextState>()(
 	persist(
 		(set) => ({
 			savedTexts: [],
-			addText: (newText, reminder, category) =>
+			addText: (newText, reminder, category, repeat) =>
 				set((state) => ({
-					savedTexts: [...state.savedTexts, { id: uuidv4(), text: newText, completed: false, reminder, category }],
+					savedTexts: [...state.savedTexts, { id: uuidv4(), text: newText, completed: false, reminder, category, repeat }],
 				})),
 			deleteText: (id) =>
 				set((state) => ({
@@ -38,10 +40,10 @@ const useTextStore = create<TextState>()(
 						task.id === id ? { ...task, completed: !task.completed } : task
 					),
 				})),
-			updateText: (id, newText, reminder, category) =>
+			updateText: (id, newText, reminder, category, repeat) =>
 				set((state) => ({
 					savedTexts: state.savedTexts.map((task) =>
-						task.id === id ? { ...task, text: newText, reminder, category } : task
+						task.id === id ? { ...task, text: newText, reminder, category, repeat } : task
 					),
 				})),
 		}),

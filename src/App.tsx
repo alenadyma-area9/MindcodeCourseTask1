@@ -3,14 +3,15 @@ import useTextStore from './store/useTextStore';
 import './App.css';
 
 type Category = 'Home' | 'Work' | 'Errands' | 'Personal' | 'Health' | 'Finance';
+type RepeatOption = 'none' | 'daily' | 'weekly' | 'monthly' | 'weekdays';
 
 const CATEGORIES: { name: Category; color: string; icon: string }[] = [
-	{ name: 'Home', color: '#4CAF50', icon: '🏠' },
-	{ name: 'Work', color: '#2196F3', icon: '💼' },
+	{ name: 'Home', color: '#66D9AD', icon: '🏠' },
+	{ name: 'Work', color: '#6A5ACD', icon: '💼' },
 	{ name: 'Errands', color: '#FF9800', icon: '🛒' },
 	{ name: 'Personal', color: '#9C27B0', icon: '👤' },
 	{ name: 'Health', color: '#F44336', icon: '❤️' },
-	{ name: 'Finance', color: '#4CAF50', icon: '💰' },
+	{ name: 'Finance', color: '#3CB371', icon: '💰' },
 ];
 
 function App() {
@@ -20,10 +21,20 @@ function App() {
 	const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 	const [showReminderPicker, setShowReminderPicker] = useState(false);
 	const [selectedReminder, setSelectedReminder] = useState<string | undefined>(undefined);
-	const [customDate, setCustomDate] = useState('');
+	const [showAdvancedReminder, setShowAdvancedReminder] = useState(false);
+
+	// Set default date to tomorrow
+	const getTomorrowDate = () => {
+		const tomorrow = new Date();
+		tomorrow.setDate(tomorrow.getDate() + 1);
+		return tomorrow.toISOString().split('T')[0];
+	};
+
+	const [customDate, setCustomDate] = useState(getTomorrowDate());
 	const [customTime, setCustomTime] = useState('00:00');
 	const [showCategoryPicker, setShowCategoryPicker] = useState(false);
 	const [selectedCategory, setSelectedCategory] = useState<Category | undefined>(undefined);
+	const [selectedRepeat, setSelectedRepeat] = useState<RepeatOption>('none');
 
 	// Global state from our Zustand store
 	const { savedTexts, addText, deleteText, toggleComplete, updateText } = useTextStore();
@@ -40,6 +51,28 @@ function App() {
 		}
 	}, [currentText]);
 
+	// Close popups when clicking outside
+	useEffect(() => {
+		const handleClickOutside = (event: MouseEvent) => {
+			const target = event.target as HTMLElement;
+
+			// Check if click is outside reminder popup
+			if (showReminderPicker && !target.closest('.reminder-popup') && !target.closest('.meta-icon-btn') && !target.closest('.clickable-chip')) {
+				setShowReminderPicker(false);
+			}
+
+			// Check if click is outside category popup
+			if (showCategoryPicker && !target.closest('.category-popup') && !target.closest('.meta-icon-btn') && !target.closest('.clickable-chip')) {
+				setShowCategoryPicker(false);
+			}
+		};
+
+		document.addEventListener('mousedown', handleClickOutside);
+		return () => {
+			document.removeEventListener('mousedown', handleClickOutside);
+		};
+	}, [showReminderPicker, showCategoryPicker]);
+
 	const handleAdd = () => {
 		if (currentText.trim()) {
 			// Remove hashtags from text before saving
@@ -47,25 +80,27 @@ function App() {
 
 			if (editingId) {
 				// Update existing task
-				updateText(editingId, cleanText, selectedReminder, selectedCategory);
+				updateText(editingId, cleanText, selectedReminder, selectedCategory, selectedReminder ? selectedRepeat : undefined);
 				setEditingId(null);
 			} else {
 				// Add new task
-				addText(cleanText, selectedReminder, selectedCategory);
+				addText(cleanText, selectedReminder, selectedCategory, selectedReminder ? selectedRepeat : undefined);
 			}
 			setCurrentText(''); // Clear the input for the next entry
 			setSelectedReminder(undefined);
 			setSelectedCategory(undefined);
-			setCustomDate('');
+			setSelectedRepeat('none');
+			setCustomDate(getTomorrowDate());
 			setCustomTime('00:00');
 		}
 	};
 
-	const handleEdit = (id: string, text: string, reminder?: string, category?: Category) => {
+	const handleEdit = (id: string, text: string, reminder?: string, category?: Category, repeat?: RepeatOption) => {
 		setCurrentText(text);
 		setEditingId(id);
 		setSelectedReminder(reminder);
 		setSelectedCategory(category);
+		setSelectedRepeat(repeat || 'none');
 		// Focus and scroll to input
 		setTimeout(() => {
 			const input = document.querySelector('.input-container input') as HTMLInputElement;
@@ -113,8 +148,17 @@ function App() {
 				break;
 		}
 
-		setSelectedReminder(reminderDate.toISOString());
-		setShowReminderPicker(false);
+		// If advanced settings are open, just set the date/time but don't close
+		if (showAdvancedReminder) {
+			const dateStr = reminderDate.toISOString().split('T')[0];
+			const timeStr = reminderDate.toTimeString().slice(0, 5);
+			setCustomDate(dateStr);
+			setCustomTime(timeStr);
+		} else {
+			// If advanced settings are closed, set reminder and close dialog
+			setSelectedReminder(reminderDate.toISOString());
+			setShowReminderPicker(false);
+		}
 	};
 
 	const setCustomReminder = () => {
@@ -122,14 +166,17 @@ function App() {
 			const reminderDate = new Date(`${customDate}T${customTime}`);
 			setSelectedReminder(reminderDate.toISOString());
 			setShowReminderPicker(false);
+			setShowAdvancedReminder(false);
 		}
 	};
 
 	const clearReminder = () => {
 		setSelectedReminder(undefined);
-		setCustomDate('');
+		setSelectedRepeat('none');
+		setCustomDate(getTomorrowDate());
 		setCustomTime('00:00');
 		setShowReminderPicker(false);
+		setShowAdvancedReminder(false);
 	};
 
 	const getCategoryColor = (categoryName?: Category) => {
@@ -140,6 +187,17 @@ function App() {
 	const getCategoryIcon = (categoryName?: Category) => {
 		if (!categoryName) return '';
 		return CATEGORIES.find(cat => cat.name === categoryName)?.icon || '';
+	};
+
+	const formatRepeat = (repeat?: RepeatOption) => {
+		if (!repeat || repeat === 'none') return '';
+		const repeatLabels = {
+			daily: 'Daily',
+			weekly: 'Weekly',
+			monthly: 'Monthly',
+			weekdays: 'Weekdays'
+		};
+		return ` • ${repeatLabels[repeat]}`;
 	};
 
 	const formatReminderTime = (isoString: string) => {
@@ -211,54 +269,78 @@ function App() {
 						placeholder="What do you need to do?"
 						maxLength={500}
 					/>
-					<button
-						className="reminder-btn"
-						onClick={() => {
-							setShowReminderPicker(!showReminderPicker);
-							setShowCategoryPicker(false);
-						}}
-						title="Set reminder"
-					>
-						🔔
-					</button>
-					<button
-						className="category-btn"
-						onClick={() => {
-							setShowCategoryPicker(!showCategoryPicker);
-							setShowReminderPicker(false);
-						}}
-						title="Set category"
-					>
-						🏷️
-					</button>
 					<button onClick={handleAdd}>{editingId ? 'UPDATE' : 'ADD TASK'}</button>
 				</div>
 
-				{/* Category and Reminder Info Below Input */}
-				{(selectedCategory || selectedReminder) && (
-					<div className="input-meta">
-						{selectedCategory && (
-							<div
-								className="selected-category"
-								style={{ backgroundColor: getCategoryColor(selectedCategory) }}
+				{/* Category and Reminder Icons + Info Below Input */}
+				<div className="input-meta">
+					{/* Show reminder icon OR selected reminder chip */}
+					{selectedReminder ? (
+						<div
+							className="selected-reminder clickable-chip"
+							onClick={() => {
+								setShowReminderPicker(!showReminderPicker);
+								setShowCategoryPicker(false);
+							}}
+						>
+							<span>⏰ {formatReminderTime(selectedReminder)}{formatRepeat(selectedRepeat)}</span>
+							<button
+								className="meta-remove"
+								onClick={(e) => {
+									e.stopPropagation();
+									clearReminder();
+								}}
 							>
-								<span>#{selectedCategory.toLowerCase()}</span>
-								<button
-									className="meta-remove"
-									onClick={() => setSelectedCategory(undefined)}
-								>
-									✕
-								</button>
-							</div>
-						)}
-						{selectedReminder && (
-							<div className="selected-reminder">
-								<span>⏰ {formatReminderTime(selectedReminder)}</span>
-								<button className="meta-remove" onClick={clearReminder}>✕</button>
-							</div>
-						)}
-					</div>
-				)}
+								✕
+							</button>
+						</div>
+					) : (
+						<button
+							className="meta-icon-btn"
+							onClick={() => {
+								setShowReminderPicker(!showReminderPicker);
+								setShowCategoryPicker(false);
+							}}
+							title="Set reminder"
+						>
+							🔔
+						</button>
+					)}
+
+					{/* Show category icon OR selected category chip */}
+					{selectedCategory ? (
+						<div
+							className="selected-category clickable-chip"
+							style={{ backgroundColor: getCategoryColor(selectedCategory) }}
+							onClick={() => {
+								setShowCategoryPicker(!showCategoryPicker);
+								setShowReminderPicker(false);
+							}}
+						>
+							<span>#{selectedCategory.toLowerCase()}</span>
+							<button
+								className="meta-remove"
+								onClick={(e) => {
+									e.stopPropagation();
+									setSelectedCategory(undefined);
+								}}
+							>
+								✕
+							</button>
+						</div>
+					) : (
+						<button
+							className="meta-icon-btn"
+							onClick={() => {
+								setShowCategoryPicker(!showCategoryPicker);
+								setShowReminderPicker(false);
+							}}
+							title="Set category"
+						>
+							🏷️
+						</button>
+					)}
+				</div>
 
 				{currentText.length === 500 && (
 					<p className="limit-warning">Turn big goals into bite-sized wins. Max 500 symbols.</p>
@@ -268,27 +350,85 @@ function App() {
 				{showReminderPicker && (
 					<div className="reminder-popup">
 						<div className="reminder-header">
-							<h3>Set Reminder</h3>
-							<button className="close-popup" onClick={() => setShowReminderPicker(false)}>✕</button>
+							<h3>Reminder</h3>
+							<button className="close-popup" onClick={() => { setShowReminderPicker(false); setShowAdvancedReminder(false); }}>✕</button>
 						</div>
+
+						{/* Quick Select Buttons */}
 						<div className="quick-reminders">
-							<button onClick={() => setQuickReminder('laterToday')}>Later Today (5:00 PM)</button>
-							<button onClick={() => setQuickReminder('tomorrowMorning')}>Tomorrow Morning (9:00 AM)</button>
-							<button onClick={() => setQuickReminder('thisWeekend')}>This Weekend</button>
+							<button onClick={() => setQuickReminder('laterToday')}>
+								<span className="quick-time">Later Today</span>
+								<span className="quick-subtext">5:00 PM</span>
+							</button>
+							<button onClick={() => setQuickReminder('tomorrowMorning')}>
+								<span className="quick-time">Tomorrow Morning</span>
+								<span className="quick-subtext">9:00 AM</span>
+							</button>
+							<button onClick={() => setQuickReminder('thisWeekend')}>
+								<span className="quick-time">This Weekend</span>
+								<span className="quick-subtext">Saturday 10:00 AM</span>
+							</button>
 						</div>
-						<div className="custom-reminder">
-							<label>Custom:</label>
-							<input
-								type="date"
-								value={customDate}
-								onChange={(e) => setCustomDate(e.target.value)}
-							/>
-							<input
-								type="time"
-								value={customTime}
-								onChange={(e) => setCustomTime(e.target.value)}
-							/>
-							<button onClick={setCustomReminder} disabled={!customDate}>Set</button>
+
+						{/* Advanced Settings Expander */}
+						<div className="advanced-expander">
+							<div className="expander-separator"></div>
+							<button
+								className="expander-button"
+								onClick={() => setShowAdvancedReminder(!showAdvancedReminder)}
+							>
+								<span className="expander-icon">📅</span>
+								<span className="expander-label">
+									{showAdvancedReminder ? 'Hide Advanced Settings' : 'Custom Time & Recurrence'}
+								</span>
+								<span className="expander-chevron">{showAdvancedReminder ? '▲' : '▼'}</span>
+							</button>
+
+							{showAdvancedReminder && (
+								<div className="advanced-content">
+									<div className="custom-datetime">
+										<div className="datetime-field">
+											<label>Date</label>
+											<input
+												type="date"
+												value={customDate}
+												onChange={(e) => setCustomDate(e.target.value)}
+											/>
+										</div>
+										<div className="datetime-field">
+											<label>Time</label>
+											<input
+												type="time"
+												value={customTime}
+												onChange={(e) => setCustomTime(e.target.value)}
+											/>
+										</div>
+									</div>
+
+									<div className="repeat-field">
+										<label>Repeat</label>
+										<select
+											value={selectedRepeat}
+											onChange={(e) => setSelectedRepeat(e.target.value as RepeatOption)}
+											className="repeat-select"
+										>
+											<option value="none">No repeat</option>
+											<option value="daily">Daily</option>
+											<option value="weekdays">Weekdays (Mon-Fri)</option>
+											<option value="weekly">Weekly</option>
+											<option value="monthly">Monthly</option>
+										</select>
+									</div>
+
+									<button
+										className="set-button"
+										onClick={setCustomReminder}
+										disabled={!customDate}
+									>
+										SET
+									</button>
+								</div>
+							)}
 						</div>
 					</div>
 				)}
@@ -362,7 +502,7 @@ function App() {
 												)}
 												{task.reminder && (
 													<span className={`task-reminder ${getReminderUrgency(task.reminder)}`}>
-														⏰ {formatReminderTime(task.reminder)}
+														⏰ {formatReminderTime(task.reminder)}{formatRepeat(task.repeat)}
 													</span>
 												)}
 											</div>
@@ -372,7 +512,7 @@ function App() {
 								<div className="task-actions">
 									<button
 										className="action-btn edit-btn"
-										onClick={() => handleEdit(task.id, task.text, task.reminder, task.category)}
+										onClick={() => handleEdit(task.id, task.text, task.reminder, task.category, task.repeat)}
 										title="Edit task"
 									>
 										✏️
