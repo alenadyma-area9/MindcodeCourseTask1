@@ -1,18 +1,21 @@
 import { useState, useEffect } from 'react';
 import useTextStore from './store/useTextStore';
+import type { CategoryItem } from './store/useTextStore';
 import './App.css';
 
-type Category = 'Home' | 'Work' | 'Errands' | 'Personal' | 'Health' | 'Finance';
 type RepeatOption = 'none' | 'daily' | 'weekly' | 'monthly' | 'weekdays';
 
-const CATEGORIES: { name: Category; color: string; icon: string }[] = [
-	{ name: 'Home', color: '#66D9AD', icon: '🏠' },
-	{ name: 'Work', color: '#6A5ACD', icon: '💼' },
-	{ name: 'Errands', color: '#FF9800', icon: '🛒' },
-	{ name: 'Personal', color: '#9C27B0', icon: '👤' },
-	{ name: 'Health', color: '#F44336', icon: '❤️' },
-	{ name: 'Finance', color: '#3CB371', icon: '💰' },
+const AVAILABLE_COLORS = [
+	'#66D9AD', // Mint Green
+	'#6A5ACD', // Slate Blue
+	'#FF9800', // Orange
+	'#9C27B0', // Purple
+	'#F44336', // Red
+	'#3CB371', // Medium Sea Green
+	'#4A90E2', // Soft Blue
 ];
+
+const AVAILABLE_ICONS = ['🏠', '💼', '🛒', '👤', '❤️', '💰', '📚'];
 
 function App() {
 	// Local state for the text currently being typed
@@ -33,23 +36,30 @@ function App() {
 	const [customDate, setCustomDate] = useState(getTomorrowDate());
 	const [customTime, setCustomTime] = useState('00:00');
 	const [showCategoryPicker, setShowCategoryPicker] = useState(false);
-	const [selectedCategory, setSelectedCategory] = useState<Category | undefined>(undefined);
+	const [selectedCategoryId, setSelectedCategoryId] = useState<string | undefined>(undefined);
 	const [selectedRepeat, setSelectedRepeat] = useState<RepeatOption>('none');
+	const [showCategoryManager, setShowCategoryManager] = useState(false);
+	const [editingCategory, setEditingCategory] = useState<CategoryItem | null>(null);
+	const [newCategoryName, setNewCategoryName] = useState('');
+	const [newCategoryColor, setNewCategoryColor] = useState(AVAILABLE_COLORS[0]);
+	const [newCategoryIcon, setNewCategoryIcon] = useState(AVAILABLE_ICONS[0]);
+	const [showCustomIconInput, setShowCustomIconInput] = useState(false);
+	const [customIconInput, setCustomIconInput] = useState('');
 
 	// Global state from our Zustand store
-	const { savedTexts, addText, deleteText, toggleComplete, updateText } = useTextStore();
+	const { savedTexts, categories, addText, deleteText, toggleComplete, updateText, addCategory, updateCategory, deleteCategory } = useTextStore();
 
 	// Parse hashtags from text to auto-detect categories
 	useEffect(() => {
 		const hashtags = currentText.match(/#(\w+)/g);
 		if (hashtags) {
 			const tag = hashtags[0].slice(1).toLowerCase();
-			const matchedCategory = CATEGORIES.find(cat => cat.name.toLowerCase() === tag);
-			if (matchedCategory && selectedCategory !== matchedCategory.name) {
-				setSelectedCategory(matchedCategory.name);
+			const matchedCategory = categories.find(cat => cat.name.toLowerCase() === tag);
+			if (matchedCategory && selectedCategoryId !== matchedCategory.id) {
+				setSelectedCategoryId(matchedCategory.id);
 			}
 		}
-	}, [currentText]);
+	}, [currentText, categories, selectedCategoryId]);
 
 	// Close popups when clicking outside
 	useEffect(() => {
@@ -59,6 +69,7 @@ function App() {
 			// Check if click is outside reminder popup
 			if (showReminderPicker && !target.closest('.reminder-popup') && !target.closest('.meta-icon-btn') && !target.closest('.clickable-chip')) {
 				setShowReminderPicker(false);
+				setShowAdvancedReminder(false);
 			}
 
 			// Check if click is outside category popup
@@ -80,26 +91,26 @@ function App() {
 
 			if (editingId) {
 				// Update existing task
-				updateText(editingId, cleanText, selectedReminder, selectedCategory, selectedReminder ? selectedRepeat : undefined);
+				updateText(editingId, cleanText, selectedReminder, selectedCategoryId, selectedReminder ? selectedRepeat : undefined);
 				setEditingId(null);
 			} else {
 				// Add new task
-				addText(cleanText, selectedReminder, selectedCategory, selectedReminder ? selectedRepeat : undefined);
+				addText(cleanText, selectedReminder, selectedCategoryId, selectedReminder ? selectedRepeat : undefined);
 			}
 			setCurrentText(''); // Clear the input for the next entry
 			setSelectedReminder(undefined);
-			setSelectedCategory(undefined);
+			setSelectedCategoryId(undefined);
 			setSelectedRepeat('none');
 			setCustomDate(getTomorrowDate());
 			setCustomTime('00:00');
 		}
 	};
 
-	const handleEdit = (id: string, text: string, reminder?: string, category?: Category, repeat?: RepeatOption) => {
+	const handleEdit = (id: string, text: string, reminder?: string, categoryId?: string, repeat?: RepeatOption) => {
 		setCurrentText(text);
 		setEditingId(id);
 		setSelectedReminder(reminder);
-		setSelectedCategory(category);
+		setSelectedCategoryId(categoryId);
 		setSelectedRepeat(repeat || 'none');
 		// Focus and scroll to input
 		setTimeout(() => {
@@ -179,14 +190,9 @@ function App() {
 		setShowAdvancedReminder(false);
 	};
 
-	const getCategoryColor = (categoryName?: Category) => {
-		if (!categoryName) return '#999';
-		return CATEGORIES.find(cat => cat.name === categoryName)?.color || '#999';
-	};
-
-	const getCategoryIcon = (categoryName?: Category) => {
-		if (!categoryName) return '';
-		return CATEGORIES.find(cat => cat.name === categoryName)?.icon || '';
+	const getCategoryById = (categoryId?: string) => {
+		if (!categoryId) return null;
+		return categories.find(cat => cat.id === categoryId) || null;
 	};
 
 	const formatRepeat = (repeat?: RepeatOption) => {
@@ -198,6 +204,53 @@ function App() {
 			weekdays: 'Weekdays'
 		};
 		return ` • ${repeatLabels[repeat]}`;
+	};
+
+	const handleSaveCategory = () => {
+		if (newCategoryName.trim()) {
+			// Use custom icon input if it's active and has value
+			const finalIcon = showCustomIconInput && customIconInput.trim() ? customIconInput.trim() : newCategoryIcon;
+
+			if (editingCategory) {
+				updateCategory(editingCategory.id, newCategoryName.trim(), newCategoryColor, finalIcon);
+			} else {
+				addCategory(newCategoryName.trim(), newCategoryColor, finalIcon);
+			}
+			resetCategoryForm();
+		}
+	};
+
+	const handleEditCategory = (category: CategoryItem) => {
+		setEditingCategory(category);
+		setNewCategoryName(category.name);
+		setNewCategoryColor(category.color);
+		setNewCategoryIcon(category.icon);
+		// If it's a custom icon (not in predefined list), show it in custom input
+		if (!AVAILABLE_ICONS.includes(category.icon)) {
+			setShowCustomIconInput(true);
+			setCustomIconInput(category.icon);
+		} else {
+			setShowCustomIconInput(false);
+			setCustomIconInput('');
+		}
+	};
+
+	const handleDeleteCategory = (id: string) => {
+		if (confirm('Delete this category? It will be removed from all tasks.')) {
+			deleteCategory(id);
+			if (editingCategory?.id === id) {
+				resetCategoryForm();
+			}
+		}
+	};
+
+	const resetCategoryForm = () => {
+		setEditingCategory(null);
+		setNewCategoryName('');
+		setNewCategoryColor(AVAILABLE_COLORS[0]);
+		setNewCategoryIcon(AVAILABLE_ICONS[0]);
+		setShowCustomIconInput(false);
+		setCustomIconInput('');
 	};
 
 	const formatReminderTime = (isoString: string) => {
@@ -308,27 +361,30 @@ function App() {
 					)}
 
 					{/* Show category icon OR selected category chip */}
-					{selectedCategory ? (
-						<div
-							className="selected-category clickable-chip"
-							style={{ backgroundColor: getCategoryColor(selectedCategory) }}
-							onClick={() => {
-								setShowCategoryPicker(!showCategoryPicker);
-								setShowReminderPicker(false);
-							}}
-						>
-							<span>#{selectedCategory.toLowerCase()}</span>
-							<button
-								className="meta-remove"
-								onClick={(e) => {
-									e.stopPropagation();
-									setSelectedCategory(undefined);
+					{selectedCategoryId ? (() => {
+						const category = getCategoryById(selectedCategoryId);
+						return category ? (
+							<div
+								className="selected-category clickable-chip"
+								style={{ backgroundColor: category.color }}
+								onClick={() => {
+									setShowCategoryPicker(!showCategoryPicker);
+									setShowReminderPicker(false);
 								}}
 							>
-								✕
-							</button>
-						</div>
-					) : (
+								<span>#{category.name.toLowerCase()}</span>
+								<button
+									className="meta-remove"
+									onClick={(e) => {
+										e.stopPropagation();
+										setSelectedCategoryId(undefined);
+									}}
+								>
+									✕
+								</button>
+							</div>
+						) : null;
+					})() : (
 						<button
 							className="meta-icon-btn"
 							onClick={() => {
@@ -441,13 +497,13 @@ function App() {
 							<button className="close-popup" onClick={() => setShowCategoryPicker(false)}>✕</button>
 						</div>
 						<div className="category-list">
-							{CATEGORIES.map((cat) => (
+							{categories.map((cat) => (
 								<button
-									key={cat.name}
+									key={cat.id}
 									className="category-option"
 									style={{ borderLeftColor: cat.color }}
 									onClick={() => {
-										setSelectedCategory(cat.name);
+										setSelectedCategoryId(cat.id);
 										setShowCategoryPicker(false);
 									}}
 								>
@@ -456,7 +512,16 @@ function App() {
 								</button>
 							))}
 						</div>
-						<p className="category-tip">💡 Tip: Type #{CATEGORIES[0].name.toLowerCase()} in your task to auto-tag!</p>
+						<button
+							className="manage-categories-btn"
+							onClick={() => {
+								setShowCategoryManager(true);
+								setShowCategoryPicker(false);
+							}}
+						>
+							⚙️ Manage Categories
+						</button>
+						<p className="category-tip">💡 Tip: Type #{categories[0]?.name.toLowerCase()} in your task to auto-tag!</p>
 					</div>
 				)}
 			</div>
@@ -490,16 +555,19 @@ function App() {
 								<div className="task-content">
 									<div className="task-text-wrapper">
 										<p className="task-text">{task.text}</p>
-										{(task.category || task.reminder) && (
+										{(task.categoryId || task.reminder) && (
 											<div className="task-meta">
-												{task.category && (
-													<span
-														className="task-category-tag"
-														style={{ backgroundColor: getCategoryColor(task.category) }}
-													>
-														#{task.category.toLowerCase()}
-													</span>
-												)}
+												{task.categoryId && (() => {
+													const category = getCategoryById(task.categoryId);
+													return category ? (
+														<span
+															className="task-category-tag"
+															style={{ backgroundColor: category.color }}
+														>
+															#{category.name.toLowerCase()}
+														</span>
+													) : null;
+												})()}
 												{task.reminder && (
 													<span className={`task-reminder ${getReminderUrgency(task.reminder)}`}>
 														⏰ {formatReminderTime(task.reminder)}{formatRepeat(task.repeat)}
@@ -512,7 +580,7 @@ function App() {
 								<div className="task-actions">
 									<button
 										className="action-btn edit-btn"
-										onClick={() => handleEdit(task.id, task.text, task.reminder, task.category, task.repeat)}
+										onClick={() => handleEdit(task.id, task.text, task.reminder, task.categoryId, task.repeat)}
 										title="Edit task"
 									>
 										✏️
@@ -544,6 +612,141 @@ function App() {
 							<button className="modal-btn no-btn" onClick={cancelDelete}>
 								No
 							</button>
+						</div>
+					</div>
+				</div>
+			)}
+
+			{/* Category Manager Modal */}
+			{showCategoryManager && (
+				<div className="modal-overlay" onClick={() => { setShowCategoryManager(false); resetCategoryForm(); }}>
+					<div className="category-manager-modal" onClick={(e) => e.stopPropagation()}>
+						<div className="modal-header">
+							<h3>Manage Categories</h3>
+							<button className="close-popup" onClick={() => { setShowCategoryManager(false); resetCategoryForm(); }}>✕</button>
+						</div>
+
+						{/* Category Form */}
+						<div className="category-form">
+							<h4>{editingCategory ? 'Edit Category' : 'New Category'}</h4>
+
+							<div className="form-field">
+								<label>Name</label>
+								<input
+									type="text"
+									value={newCategoryName}
+									onChange={(e) => setNewCategoryName(e.target.value)}
+									placeholder="Category name"
+									maxLength={20}
+								/>
+							</div>
+
+							<div className="form-field">
+								<label>Icon</label>
+								<div className="icon-picker">
+									{AVAILABLE_ICONS.map(icon => (
+										<button
+											key={icon}
+											className={`icon-option ${newCategoryIcon === icon ? 'selected' : ''}`}
+											onClick={() => {
+												setNewCategoryIcon(icon);
+												setShowCustomIconInput(false);
+											}}
+										>
+											{icon}
+										</button>
+									))}
+									<button
+										className={`icon-option custom-icon-option ${showCustomIconInput ? 'selected' : ''}`}
+										onClick={() => {
+											setShowCustomIconInput(true);
+											if (!AVAILABLE_ICONS.includes(newCategoryIcon)) {
+												setCustomIconInput(newCategoryIcon);
+											}
+										}}
+									>
+										{showCustomIconInput && customIconInput ? customIconInput : '+'}
+									</button>
+								</div>
+								{showCustomIconInput && (
+									<div className="custom-icon-input">
+										<input
+											type="text"
+											value={customIconInput}
+											onChange={(e) => setCustomIconInput(e.target.value)}
+											placeholder="Paste emoji here"
+											maxLength={2}
+											autoFocus
+										/>
+									</div>
+								)}
+							</div>
+
+							<div className="form-field">
+								<label>Color</label>
+								<div className="color-picker">
+									{AVAILABLE_COLORS.map(color => (
+										<button
+											key={color}
+											className={`color-option ${newCategoryColor === color ? 'selected' : ''}`}
+											style={{ backgroundColor: color }}
+											onClick={() => setNewCategoryColor(color)}
+											title={color}
+										/>
+									))}
+								</div>
+							</div>
+
+							<div className="form-actions">
+								<button
+									className="save-category-btn"
+									onClick={handleSaveCategory}
+									disabled={!newCategoryName.trim()}
+								>
+									{editingCategory ? 'Update' : 'Add'} Category
+								</button>
+								{editingCategory && (
+									<button
+										className="cancel-edit-btn"
+										onClick={resetCategoryForm}
+									>
+										Cancel
+									</button>
+								)}
+							</div>
+						</div>
+
+						{/* Existing Categories List */}
+						<div className="categories-list">
+							<h4>Your Categories</h4>
+							{categories.map(cat => (
+								<div key={cat.id} className="category-item">
+									<div className="category-item-info">
+										<span className="category-item-icon">
+											{cat.icon}
+										</span>
+										<span className="category-item-chip" style={{ backgroundColor: cat.color }}>
+											#{cat.name.toLowerCase()}
+										</span>
+									</div>
+									<div className="category-item-actions">
+										<button
+											className="edit-category-btn"
+											onClick={() => handleEditCategory(cat)}
+											title="Edit"
+										>
+											✏️
+										</button>
+										<button
+											className="delete-category-btn"
+											onClick={() => handleDeleteCategory(cat.id)}
+											title="Delete"
+										>
+											🗑️
+										</button>
+									</div>
+								</div>
+							))}
 						</div>
 					</div>
 				</div>
