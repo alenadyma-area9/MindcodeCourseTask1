@@ -6,16 +6,15 @@ import './App.css';
 type RepeatOption = 'none' | 'daily' | 'weekly' | 'monthly' | 'weekdays';
 
 const AVAILABLE_COLORS = [
-	'#66D9AD', // Mint Green
-	'#6A5ACD', // Slate Blue
-	'#FF9800', // Orange
-	'#9C27B0', // Purple
-	'#F44336', // Red
-	'#3CB371', // Medium Sea Green
-	'#4A90E2', // Soft Blue
+	'#FFC0CB',
+	'#C2E0C2',
+	'#AEC8C8',
+	'#D8BFD8',
+	'#FFD39B',
+	'#CCDDEE',
+	'#FFF0B5',
+	'#EADFCD',
 ];
-
-const AVAILABLE_ICONS = ['🏠', '💼', '🛒', '👤', '❤️', '💰', '📚'];
 
 function App() {
 	// Local state for the text currently being typed
@@ -42,9 +41,6 @@ function App() {
 	const [editingCategory, setEditingCategory] = useState<CategoryItem | null>(null);
 	const [newCategoryName, setNewCategoryName] = useState('');
 	const [newCategoryColor, setNewCategoryColor] = useState(AVAILABLE_COLORS[0]);
-	const [newCategoryIcon, setNewCategoryIcon] = useState(AVAILABLE_ICONS[0]);
-	const [showCustomIconInput, setShowCustomIconInput] = useState(false);
-	const [customIconInput, setCustomIconInput] = useState('');
 	const [deleteCategoryId, setDeleteCategoryId] = useState<string | null>(null);
 
 	// Global state from our Zustand store
@@ -209,13 +205,10 @@ function App() {
 
 	const handleSaveCategory = () => {
 		if (newCategoryName.trim()) {
-			// Use custom icon input if it's active and has value
-			const finalIcon = showCustomIconInput && customIconInput.trim() ? customIconInput.trim() : newCategoryIcon;
-
 			if (editingCategory) {
-				updateCategory(editingCategory.id, newCategoryName.trim(), newCategoryColor, finalIcon);
+				updateCategory(editingCategory.id, newCategoryName.trim(), newCategoryColor);
 			} else {
-				addCategory(newCategoryName.trim(), newCategoryColor, finalIcon);
+				addCategory(newCategoryName.trim(), newCategoryColor);
 			}
 			resetCategoryForm();
 		}
@@ -225,15 +218,6 @@ function App() {
 		setEditingCategory(category);
 		setNewCategoryName(category.name);
 		setNewCategoryColor(category.color);
-		setNewCategoryIcon(category.icon);
-		// If it's a custom icon (not in predefined list), show it in custom input
-		if (!AVAILABLE_ICONS.includes(category.icon)) {
-			setShowCustomIconInput(true);
-			setCustomIconInput(category.icon);
-		} else {
-			setShowCustomIconInput(false);
-			setCustomIconInput('');
-		}
 		// Focus and scroll to the name input
 		setTimeout(() => {
 			const nameInput = document.querySelector('.category-form input[type="text"]') as HTMLInputElement;
@@ -268,9 +252,6 @@ function App() {
 		setEditingCategory(null);
 		setNewCategoryName('');
 		setNewCategoryColor(AVAILABLE_COLORS[0]);
-		setNewCategoryIcon(AVAILABLE_ICONS[0]);
-		setShowCustomIconInput(false);
-		setCustomIconInput('');
 	};
 
 	const formatReminderTime = (isoString: string) => {
@@ -521,14 +502,13 @@ function App() {
 								<button
 									key={cat.id}
 									className="category-option"
-									style={{ borderLeftColor: cat.color }}
+									style={{ borderLeftColor: cat.color, backgroundColor: cat.color }}
 									onClick={() => {
 										setSelectedCategoryId(cat.id);
 										setShowCategoryPicker(false);
 									}}
 								>
-									<span className="category-icon">{cat.icon}</span>
-									<span className="category-name">{cat.name}</span>
+									<span className="category-name">#{cat.name.toLowerCase()}</span>
 								</button>
 							))}
 						</div>
@@ -669,67 +649,23 @@ function App() {
 							<h4>{editingCategory ? 'Edit Category' : 'New Category'}</h4>
 
 							<div className="form-field">
-								<label>Name</label>
 								<input
 									type="text"
 									value={newCategoryName}
 									onChange={(e) => setNewCategoryName(e.target.value)}
-									placeholder="Category name"
+									placeholder="Enter category name (e.g., Errands)"
 									maxLength={20}
 								/>
 							</div>
 
 							<div className="form-field">
-								<label>Icon</label>
-								<div className="icon-picker">
-									{AVAILABLE_ICONS.map(icon => (
-										<button
-											key={icon}
-											className={`icon-option ${newCategoryIcon === icon ? 'selected' : ''}`}
-											onClick={() => {
-												setNewCategoryIcon(icon);
-												setShowCustomIconInput(false);
-											}}
-										>
-											{icon}
-										</button>
-									))}
-									<button
-										className={`icon-option custom-icon-option ${showCustomIconInput ? 'selected' : ''}`}
-										onClick={() => {
-											setShowCustomIconInput(true);
-											if (!AVAILABLE_ICONS.includes(newCategoryIcon)) {
-												setCustomIconInput(newCategoryIcon);
-											}
-										}}
-									>
-										{showCustomIconInput && customIconInput ? customIconInput : '+'}
-									</button>
-								</div>
-								{showCustomIconInput && (
-									<div className="custom-icon-input">
-										<input
-											type="text"
-											value={customIconInput}
-											onChange={(e) => setCustomIconInput(e.target.value)}
-											placeholder="Paste emoji here"
-											maxLength={2}
-											autoFocus
-										/>
-									</div>
-								)}
-							</div>
-
-							<div className="form-field">
-								<label>Color</label>
-								<div className="color-picker">
+								<div className="color-picker-grid">
 									{AVAILABLE_COLORS.map(color => (
 										<button
 											key={color}
-											className={`color-option ${newCategoryColor === color ? 'selected' : ''}`}
+											className={`color-box ${newCategoryColor === color ? 'selected' : ''}`}
 											style={{ backgroundColor: color }}
 											onClick={() => setNewCategoryColor(color)}
-											title={color}
 										/>
 									))}
 								</div>
@@ -760,9 +696,6 @@ function App() {
 							{categories.map(cat => (
 								<div key={cat.id} className="category-item">
 									<div className="category-item-info">
-										<span className="category-item-icon">
-											{cat.icon}
-										</span>
 										<span className="category-item-chip" style={{ backgroundColor: cat.color }}>
 											#{cat.name.toLowerCase()}
 										</span>

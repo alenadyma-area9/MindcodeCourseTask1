@@ -8,7 +8,6 @@ export interface CategoryItem {
 	id: string;
 	name: string;
 	color: string;
-	icon: string;
 }
 
 export interface Task {
@@ -21,12 +20,12 @@ export interface Task {
 }
 
 const DEFAULT_CATEGORIES: CategoryItem[] = [
-	{ id: '1', name: 'Home', color: '#66D9AD', icon: '🏠' },
-	{ id: '2', name: 'Work', color: '#6A5ACD', icon: '💼' },
-	{ id: '3', name: 'Errands', color: '#FF9800', icon: '🛒' },
-	{ id: '4', name: 'Personal', color: '#9C27B0', icon: '👤' },
-	{ id: '5', name: 'Health', color: '#F44336', icon: '❤️' },
-	{ id: '6', name: 'Finance', color: '#3CB371', icon: '💰' },
+	{ id: '1', name: 'Home', color: '#D8E8C9' },
+	{ id: '2', name: 'Work', color: '#BDE0FF' },
+	{ id: '3', name: 'Errands', color: '#FFD8A8' },
+	{ id: '4', name: 'Personal', color: '#FAD2E1' },
+	{ id: '5', name: 'Health', color: '#C8F5E1' },
+	{ id: '6', name: 'Finance', color: '#FFF8C5' },
 ];
 
 interface TextState {
@@ -36,8 +35,8 @@ interface TextState {
 	deleteText: (id: string) => void;
 	toggleComplete: (id: string) => void;
 	updateText: (id: string, newText: string, reminder?: string, categoryId?: string, repeat?: RepeatOption) => void;
-	addCategory: (name: string, color: string, icon: string) => void;
-	updateCategory: (id: string, name: string, color: string, icon: string) => void;
+	addCategory: (name: string, color: string) => void;
+	updateCategory: (id: string, name: string, color: string) => void;
 	deleteCategory: (id: string) => void;
 }
 
@@ -66,14 +65,14 @@ const useTextStore = create<TextState>()(
 						task.id === id ? { ...task, text: newText, reminder, categoryId, repeat } : task
 					),
 				})),
-			addCategory: (name, color, icon) =>
+			addCategory: (name, color) =>
 				set((state) => ({
-					categories: [...state.categories, { id: uuidv4(), name, color, icon }],
+					categories: [...state.categories, { id: uuidv4(), name, color }],
 				})),
-			updateCategory: (id, name, color, icon) =>
+			updateCategory: (id, name, color) =>
 				set((state) => ({
 					categories: state.categories.map((cat) =>
-						cat.id === id ? { ...cat, name, color, icon } : cat
+						cat.id === id ? { ...cat, name, color } : cat
 					),
 				})),
 			deleteCategory: (id) =>
@@ -87,7 +86,7 @@ const useTextStore = create<TextState>()(
 		}),
 		{
 			name: 'text-storage',
-			version: 1,
+			version: 2,
 			migrate: (persistedState: any, version: number) => {
 				// Migrate old string[] format to new Task[] format
 				if (version === 0 && Array.isArray(persistedState?.savedTexts)) {
@@ -107,6 +106,27 @@ const useTextStore = create<TextState>()(
 						}),
 					};
 				}
+
+				// Update category colors to new palette
+				if (version < 2 && persistedState?.categories) {
+					const colorMap: { [key: string]: string } = {
+						'Home': '#D8E8C9',
+						'Work': '#BDE0FF',
+						'Errands': '#FFD8A8',
+						'Personal': '#FAD2E1',
+						'Health': '#C8F5E1',
+						'Finance': '#FFF8C5',
+					};
+
+					return {
+						...persistedState,
+						categories: persistedState.categories.map((cat: CategoryItem) => ({
+							...cat,
+							color: colorMap[cat.name] || cat.color,
+						})),
+					};
+				}
+
 				return persistedState;
 			},
 		}
