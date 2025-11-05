@@ -45,6 +45,7 @@ function App() {
 	const [newCategoryIcon, setNewCategoryIcon] = useState(AVAILABLE_ICONS[0]);
 	const [showCustomIconInput, setShowCustomIconInput] = useState(false);
 	const [customIconInput, setCustomIconInput] = useState('');
+	const [deleteCategoryId, setDeleteCategoryId] = useState<string | null>(null);
 
 	// Global state from our Zustand store
 	const { savedTexts, categories, addText, deleteText, toggleComplete, updateText, addCategory, updateCategory, deleteCategory } = useTextStore();
@@ -233,15 +234,34 @@ function App() {
 			setShowCustomIconInput(false);
 			setCustomIconInput('');
 		}
+		// Focus and scroll to the name input
+		setTimeout(() => {
+			const nameInput = document.querySelector('.category-form input[type="text"]') as HTMLInputElement;
+			if (nameInput) {
+				nameInput.focus();
+				// Move cursor to end of text
+				nameInput.setSelectionRange(nameInput.value.length, nameInput.value.length);
+				nameInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+			}
+		}, 100);
 	};
 
 	const handleDeleteCategory = (id: string) => {
-		if (confirm('Delete this category? It will be removed from all tasks.')) {
-			deleteCategory(id);
-			if (editingCategory?.id === id) {
+		setDeleteCategoryId(id);
+	};
+
+	const confirmDeleteCategory = () => {
+		if (deleteCategoryId) {
+			deleteCategory(deleteCategoryId);
+			if (editingCategory?.id === deleteCategoryId) {
 				resetCategoryForm();
 			}
+			setDeleteCategoryId(null);
 		}
+	};
+
+	const cancelDeleteCategory = () => {
+		setDeleteCategoryId(null);
 	};
 
 	const resetCategoryForm = () => {
@@ -599,7 +619,7 @@ function App() {
 				</div>
 			)}
 
-			{/* Delete Confirmation Dialog */}
+			{/* Delete Task Confirmation Dialog */}
 			{deleteConfirmId && (
 				<div className="modal-overlay" onClick={cancelDelete}>
 					<div className="modal-content" onClick={(e) => e.stopPropagation()}>
@@ -610,6 +630,24 @@ function App() {
 								Yes
 							</button>
 							<button className="modal-btn no-btn" onClick={cancelDelete}>
+								No
+							</button>
+						</div>
+					</div>
+				</div>
+			)}
+
+			{/* Delete Category Confirmation Dialog */}
+			{deleteCategoryId && (
+				<div className="modal-overlay delete-confirm-overlay" onClick={cancelDeleteCategory}>
+					<div className="modal-content" onClick={(e) => e.stopPropagation()}>
+						<h3>Delete Category?</h3>
+						<p>This category will be removed from all tasks using it.</p>
+						<div className="modal-actions">
+							<button className="modal-btn yes-btn" onClick={confirmDeleteCategory}>
+								Yes
+							</button>
+							<button className="modal-btn no-btn" onClick={cancelDeleteCategory}>
 								No
 							</button>
 						</div>
