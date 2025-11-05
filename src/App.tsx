@@ -1,9 +1,20 @@
 import { useState, useEffect } from 'react';
+import DatePicker from 'react-datepicker';
+import 'react-datepicker/dist/react-datepicker.css';
+import Select from 'react-select';
 import useTextStore from './store/useTextStore';
 import type { CategoryItem } from './store/useTextStore';
 import './App.css';
 
 type RepeatOption = 'none' | 'daily' | 'weekly' | 'monthly' | 'weekdays';
+
+const REPEAT_OPTIONS = [
+	{ value: 'none', label: 'No repeat' },
+	{ value: 'daily', label: 'Daily' },
+	{ value: 'weekdays', label: 'Weekdays (Mon-Fri)' },
+	{ value: 'weekly', label: 'Weekly' },
+	{ value: 'monthly', label: 'Monthly' }
+];
 
 const AVAILABLE_COLORS = [
 	'#FFC0CB',
@@ -29,11 +40,11 @@ function App() {
 	const getTomorrowDate = () => {
 		const tomorrow = new Date();
 		tomorrow.setDate(tomorrow.getDate() + 1);
-		return tomorrow.toISOString().split('T')[0];
+		return tomorrow;
 	};
 
-	const [customDate, setCustomDate] = useState(getTomorrowDate());
-	const [customTime, setCustomTime] = useState('00:00');
+	const [customDate, setCustomDate] = useState<Date>(getTomorrowDate());
+	const [customTime, setCustomTime] = useState('');
 	const [showCategoryPicker, setShowCategoryPicker] = useState(false);
 	const [selectedCategoryId, setSelectedCategoryId] = useState<string | undefined>(undefined);
 	const [selectedRepeat, setSelectedRepeat] = useState<RepeatOption>('none');
@@ -99,7 +110,7 @@ function App() {
 			setSelectedCategoryId(undefined);
 			setSelectedRepeat('none');
 			setCustomDate(getTomorrowDate());
-			setCustomTime('00:00');
+			setCustomTime('');
 		}
 	};
 
@@ -109,6 +120,19 @@ function App() {
 		setSelectedReminder(reminder);
 		setSelectedCategoryId(categoryId);
 		setSelectedRepeat(repeat || 'none');
+
+		// If task has a reminder, set the date and time from it
+		if (reminder) {
+			const reminderDate = new Date(reminder);
+			setCustomDate(reminderDate);
+			const timeStr = reminderDate.toTimeString().slice(0, 5);
+			setCustomTime(timeStr);
+		} else {
+			// Only use defaults if no reminder
+			setCustomDate(getTomorrowDate());
+			setCustomTime('');
+		}
+
 		// Focus and scroll to input
 		setTimeout(() => {
 			const input = document.querySelector('.input-container input') as HTMLInputElement;
@@ -158,9 +182,8 @@ function App() {
 
 		// If advanced settings are open, just set the date/time but don't close
 		if (showAdvancedReminder) {
-			const dateStr = reminderDate.toISOString().split('T')[0];
+			setCustomDate(reminderDate);
 			const timeStr = reminderDate.toTimeString().slice(0, 5);
-			setCustomDate(dateStr);
 			setCustomTime(timeStr);
 		} else {
 			// If advanced settings are closed, set reminder and close dialog
@@ -170,8 +193,11 @@ function App() {
 	};
 
 	const setCustomReminder = () => {
-		if (customDate && customTime) {
-			const reminderDate = new Date(`${customDate}T${customTime}`);
+		if (customDate) {
+			const dateStr = customDate.toISOString().split('T')[0];
+			// Use 09:00 as default if no time is selected
+			const timeToUse = customTime || '09:00';
+			const reminderDate = new Date(`${dateStr}T${timeToUse}`);
 			setSelectedReminder(reminderDate.toISOString());
 			setShowReminderPicker(false);
 			setShowAdvancedReminder(false);
@@ -182,7 +208,7 @@ function App() {
 		setSelectedReminder(undefined);
 		setSelectedRepeat('none');
 		setCustomDate(getTomorrowDate());
-		setCustomTime('00:00');
+		setCustomTime('');
 		setShowReminderPicker(false);
 		setShowAdvancedReminder(false);
 	};
@@ -259,19 +285,38 @@ function App() {
 		const now = new Date();
 		const isToday = date.toDateString() === now.toDateString();
 		const isTomorrow = date.toDateString() === new Date(now.getTime() + 86400000).toDateString();
+		const isSameYear = date.getFullYear() === now.getFullYear();
+		const isDefaultTime = date.getHours() === 9 && date.getMinutes() === 0;
 
-		const timeStr = date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+		const timeStr = date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
 
+		// For today/tomorrow with default time, show only the label without time
+		if (isToday && isDefaultTime) return 'Today';
+		if (isTomorrow && isDefaultTime) return 'Tomorrow';
+
+		// For today/tomorrow with custom time, show label and time
 		if (isToday) return `Today, ${timeStr}`;
 		if (isTomorrow) return `Tomorrow, ${timeStr}`;
 
-		return date.toLocaleDateString('en-US', {
+		const dateFormatOptions: Intl.DateTimeFormatOptions = {
 			weekday: 'short',
 			month: 'short',
-			day: 'numeric',
-			hour: 'numeric',
-			minute: '2-digit'
-		});
+			day: 'numeric'
+		};
+
+		// Add year if it's different from current year
+		if (!isSameYear) {
+			dateFormatOptions.year = 'numeric';
+		}
+
+		// Add time only if it's not the default 09:00
+		if (!isDefaultTime) {
+			dateFormatOptions.hour = '2-digit';
+			dateFormatOptions.minute = '2-digit';
+			dateFormatOptions.hour12 = false;
+		}
+
+		return date.toLocaleDateString('en-US', dateFormatOptions);
 	};
 
 	const getReminderUrgency = (isoString: string) => {
@@ -355,9 +400,9 @@ function App() {
 								setShowReminderPicker(!showReminderPicker);
 								setShowCategoryPicker(false);
 							}}
-							title="Set reminder"
 						>
 							🔔
+							<span className="meta-tooltip">Set reminder</span>
 						</button>
 					)}
 
@@ -392,9 +437,9 @@ function App() {
 								setShowCategoryPicker(!showCategoryPicker);
 								setShowReminderPicker(false);
 							}}
-							title="Set category"
 						>
 							🏷️
+							<span className="meta-tooltip">Set category</span>
 						</button>
 					)}
 				</div>
@@ -415,15 +460,15 @@ function App() {
 						<div className="quick-reminders">
 							<button onClick={() => setQuickReminder('laterToday')}>
 								<span className="quick-time">Later Today</span>
-								<span className="quick-subtext">5:00 PM</span>
+								<span className="quick-subtext">17:00</span>
 							</button>
 							<button onClick={() => setQuickReminder('tomorrowMorning')}>
 								<span className="quick-time">Tomorrow Morning</span>
-								<span className="quick-subtext">9:00 AM</span>
+								<span className="quick-subtext">09:00</span>
 							</button>
 							<button onClick={() => setQuickReminder('thisWeekend')}>
 								<span className="quick-time">This Weekend</span>
-								<span className="quick-subtext">Saturday 10:00 AM</span>
+								<span className="quick-subtext">Saturday 10:00</span>
 							</button>
 						</div>
 
@@ -446,35 +491,119 @@ function App() {
 									<div className="custom-datetime">
 										<div className="datetime-field">
 											<label>Date</label>
-											<input
-												type="date"
-												value={customDate}
-												onChange={(e) => setCustomDate(e.target.value)}
+											<DatePicker
+												selected={customDate}
+												onChange={(date: Date | null) => date && setCustomDate(date)}
+												dateFormat="dd/MM/yyyy"
+												calendarStartDay={1}
+												className="date-picker-input"
+												popperPlacement="bottom-start"
+												popperProps={{
+													strategy: "fixed"
+												}}
 											/>
 										</div>
 										<div className="datetime-field">
-											<label>Time</label>
-											<input
-												type="time"
-												value={customTime}
-												onChange={(e) => setCustomTime(e.target.value)}
-											/>
+											<label>Time (optional)</label>
+											<div className="time-picker-custom">
+												<Select
+													value={customTime ? { value: customTime.split(':')[0], label: customTime.split(':')[0] } : { value: '', label: 'HH' }}
+													onChange={(option) => {
+														if (option && option.value === '') {
+															// Empty option selected - clear the time
+															setCustomTime('');
+														} else if (option) {
+															const minutes = customTime ? customTime.split(':')[1] : '00';
+															setCustomTime(`${option.value}:${minutes}`);
+														}
+													}}
+													options={[
+														{ value: '', label: '--' },
+														...Array.from({ length: 24 }, (_, i) => {
+															const hour = i.toString().padStart(2, '0');
+															return { value: hour, label: hour };
+														})
+													]}
+													className="time-select-container"
+													classNamePrefix="time-select"
+													isSearchable={true}
+													menuPlacement="auto"
+													placeholder="HH"
+													filterOption={(option, inputValue) => {
+														if (!inputValue) return true;
+														if (option.value === '') return false; // Hide empty option when typing
+														const numInput = parseInt(inputValue);
+														const numOption = parseInt(option.value);
+														return !isNaN(numInput) && numOption === numInput;
+													}}
+													onInputChange={(inputValue, { action }) => {
+														if (action === 'input-change') {
+															const num = parseInt(inputValue);
+															if (!isNaN(num) && num >= 0 && num <= 23) {
+																const hour = num.toString().padStart(2, '0');
+																const minutes = customTime ? customTime.split(':')[1] : '00';
+																setCustomTime(`${hour}:${minutes}`);
+															}
+														}
+													}}
+												/>
+												<span className="time-separator">:</span>
+												<Select
+													value={customTime ? { value: customTime.split(':')[1], label: customTime.split(':')[1] } : { value: '', label: 'MM' }}
+													onChange={(option) => {
+														if (option && option.value === '') {
+															// Empty option selected - clear the time
+															setCustomTime('');
+														} else if (option) {
+															const hours = customTime ? customTime.split(':')[0] : '09';
+															setCustomTime(`${hours}:${option.value}`);
+														}
+													}}
+													options={[
+														{ value: '', label: '--' },
+														...Array.from({ length: 60 }, (_, i) => {
+															const minute = i.toString().padStart(2, '0');
+															return { value: minute, label: minute };
+														})
+													]}
+													className="time-select-container"
+													classNamePrefix="time-select"
+													isSearchable={true}
+													menuPlacement="auto"
+													placeholder="MM"
+													filterOption={(option, inputValue) => {
+														if (!inputValue) return true;
+														if (option.value === '') return false; // Hide empty option when typing
+														const numInput = parseInt(inputValue);
+														const numOption = parseInt(option.value);
+														return !isNaN(numInput) && numOption === numInput;
+													}}
+													onInputChange={(inputValue, { action }) => {
+														if (action === 'input-change') {
+															const num = parseInt(inputValue);
+															if (!isNaN(num) && num >= 0 && num <= 59) {
+																const minute = num.toString().padStart(2, '0');
+																const hours = customTime ? customTime.split(':')[0] : '09';
+																setCustomTime(`${hours}:${minute}`);
+															}
+														}
+													}}
+												/>
+											</div>
 										</div>
 									</div>
 
 									<div className="repeat-field">
 										<label>Repeat</label>
-										<select
-											value={selectedRepeat}
-											onChange={(e) => setSelectedRepeat(e.target.value as RepeatOption)}
-											className="repeat-select"
-										>
-											<option value="none">No repeat</option>
-											<option value="daily">Daily</option>
-											<option value="weekdays">Weekdays (Mon-Fri)</option>
-											<option value="weekly">Weekly</option>
-											<option value="monthly">Monthly</option>
-										</select>
+										<Select
+											value={REPEAT_OPTIONS.find(opt => opt.value === selectedRepeat)}
+											onChange={(option) => option && setSelectedRepeat(option.value as RepeatOption)}
+											options={REPEAT_OPTIONS}
+											className="repeat-select-container"
+											classNamePrefix="repeat-select"
+											isSearchable={false}
+											menuPlacement="auto"
+										/>
 									</div>
 
 									<button
@@ -546,12 +675,17 @@ function App() {
 					<div className="saved-texts">
 						{sortedTasks.map((task) => (
 							<div key={task.id} className={`task-item ${task.completed ? 'completed' : ''}`}>
-								<input
-									type="checkbox"
-									className="task-checkbox"
-									checked={task.completed}
-									onChange={() => toggleComplete(task.id)}
-								/>
+								<div className="checkbox-wrapper">
+									<input
+										type="checkbox"
+										className="task-checkbox"
+										checked={task.completed}
+										onChange={() => toggleComplete(task.id)}
+									/>
+									<span className="checkbox-tooltip">
+										{task.completed ? 'Mark as undone' : 'Mark as done'}
+									</span>
+								</div>
 								<div className="task-content">
 									<div className="task-text-wrapper">
 										<p className="task-text">{task.text}</p>
@@ -581,16 +715,16 @@ function App() {
 									<button
 										className="action-btn edit-btn"
 										onClick={() => handleEdit(task.id, task.text, task.reminder, task.categoryId, task.repeat)}
-										title="Edit task"
 									>
 										✏️
+										<span className="action-tooltip">Edit task</span>
 									</button>
 									<button
 										className="action-btn delete-btn"
 										onClick={() => handleDelete(task.id)}
-										title="Delete task"
 									>
 										🗑️
+										<span className="action-tooltip">Delete task</span>
 									</button>
 								</div>
 							</div>
@@ -704,16 +838,16 @@ function App() {
 										<button
 											className="edit-category-btn"
 											onClick={() => handleEditCategory(cat)}
-											title="Edit"
 										>
 											✏️
+											<span className="category-action-tooltip">Edit</span>
 										</button>
 										<button
 											className="delete-category-btn"
 											onClick={() => handleDeleteCategory(cat.id)}
-											title="Delete"
 										>
 											🗑️
+											<span className="category-action-tooltip">Delete</span>
 										</button>
 									</div>
 								</div>
