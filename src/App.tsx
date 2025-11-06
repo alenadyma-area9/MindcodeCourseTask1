@@ -56,7 +56,7 @@ function App() {
 	const [deleteCategoryId, setDeleteCategoryId] = useState<string | null>(null);
 	const [showDescription, setShowDescription] = useState(false);
 	const [description, setDescription] = useState('');
-	const [viewingDescription, setViewingDescription] = useState<string | null>(null);
+	const [viewingTask, setViewingTask] = useState<string | null>(null);
 
 	// Global state from our Zustand store
 	const { savedTexts, categories, addText, deleteText, toggleComplete, updateText, addCategory, updateCategory, deleteCategory } = useTextStore();
@@ -806,8 +806,12 @@ function App() {
 					<h2>My Focus List:</h2>
 					<div className="saved-texts">
 						{sortedTasks.map((task) => (
-							<div key={task.id} className={`task-item ${task.completed ? 'completed' : ''}`}>
-								<div className="checkbox-wrapper">
+							<div
+								key={task.id}
+								className={`task-item ${task.completed ? 'completed' : ''}`}
+								onClick={() => setViewingTask(task.id)}
+							>
+								<div className="checkbox-wrapper" onClick={(e) => e.stopPropagation()}>
 									<input
 										type="checkbox"
 										className="task-checkbox"
@@ -827,10 +831,7 @@ function App() {
 
 										{/* Line 2: Description preview (if exists) */}
 										{task.description && (
-											<div
-												className="task-description-preview"
-												onClick={() => setViewingDescription(task.description || null)}
-											>
+											<div className="task-description-preview">
 												<span className="description-text">{getDescriptionPreview(task.description)}</span>
 											</div>
 										)}
@@ -858,7 +859,7 @@ function App() {
 										)}
 									</div>
 								</div>
-								<div className="task-actions">
+								<div className="task-actions" onClick={(e) => e.stopPropagation()}>
 									<button
 										className="action-btn edit-btn"
 										onClick={() => handleEdit(task.id, task.text, task.reminder, task.categoryId, task.repeat, task.description)}
@@ -916,18 +917,83 @@ function App() {
 				</div>
 			)}
 
-			{/* View Description Modal */}
-			{viewingDescription && (
-				<div className="modal-overlay" onClick={() => setViewingDescription(null)}>
-					<div className="description-modal" onClick={(e) => e.stopPropagation()}>
-						<div className="modal-header">
-							<h3>Task Details</h3>
-							<button className="close-popup" onClick={() => setViewingDescription(null)}>✕</button>
+			{/* View Task Details Modal */}
+			{viewingTask && (() => {
+				const task = savedTexts.find(t => t.id === viewingTask);
+				if (!task) return null;
+				const category = getCategoryById(task.categoryId);
+				return (
+					<div className="modal-overlay" onClick={() => setViewingTask(null)}>
+						<div className="task-details-modal" onClick={(e) => e.stopPropagation()}>
+							<button className="close-popup" onClick={() => setViewingTask(null)}>✕</button>
+
+							{/* Task Title with Checkbox */}
+							<div className="task-details-header">
+								<div className="checkbox-wrapper">
+									<input
+										type="checkbox"
+										className="task-checkbox"
+										checked={task.completed}
+										onChange={() => toggleComplete(task.id)}
+									/>
+									<span className="checkbox-tooltip">
+										{task.completed ? 'Mark as undone' : 'Mark as done'}
+									</span>
+								</div>
+								<h3 className={`task-details-title ${task.completed ? 'completed' : ''}`}>
+									{task.text === '(No title)' ? formatCreationTime(task.createdAt) : task.text}
+								</h3>
+							</div>
+
+							{/* Description/Details */}
+							{task.description && (
+								<div className="description-content" dangerouslySetInnerHTML={{ __html: formatTextToHtml(task.description) }} />
+							)}
+
+							{/* Metadata - same style as task list */}
+							{(task.reminder || task.categoryId) && (
+								<div className="task-details-meta">
+									{task.reminder && (
+										<span className={`task-reminder ${getReminderUrgency(task.reminder)}`}>
+											⏰ {formatReminderTime(task.reminder)}{formatRepeat(task.repeat)}
+										</span>
+									)}
+									{category && (
+										<span
+											className="task-category-tag"
+											style={{ backgroundColor: category.color }}
+										>
+											#{category.name.toLowerCase()}
+										</span>
+									)}
+								</div>
+							)}
+
+							{/* Actions */}
+							<div className="task-details-actions">
+								<button
+									className="task-details-action-btn edit-action"
+									onClick={() => {
+										handleEdit(task.id, task.text, task.reminder, task.categoryId, task.repeat, task.description);
+										setViewingTask(null);
+									}}
+								>
+									✏️
+								</button>
+								<button
+									className="task-details-action-btn delete-action"
+									onClick={() => {
+										handleDelete(task.id);
+										setViewingTask(null);
+									}}
+								>
+									🗑️
+								</button>
+							</div>
 						</div>
-						<div className="description-content" dangerouslySetInnerHTML={{ __html: formatTextToHtml(viewingDescription) }} />
 					</div>
-				</div>
-			)}
+				);
+			})()}
 
 			{/* Category Manager Modal */}
 			{showCategoryManager && (
