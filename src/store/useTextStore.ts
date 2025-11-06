@@ -15,6 +15,7 @@ export interface Task {
 	text: string;
 	description?: string; // Rich text description/notes
 	completed: boolean;
+	createdAt?: number; // Timestamp when task was created
 	completedAt?: number; // Timestamp when task was completed
 	reminder?: string;
 	repeat?: RepeatOption;
@@ -49,7 +50,7 @@ const useTextStore = create<TextState>()(
 			categories: DEFAULT_CATEGORIES,
 			addText: (newText, reminder, categoryId, repeat, description) =>
 				set((state) => ({
-					savedTexts: [...state.savedTexts, { id: uuidv4(), text: newText, completed: false, reminder, categoryId, repeat, description }],
+					savedTexts: [...state.savedTexts, { id: uuidv4(), text: newText, completed: false, createdAt: Date.now(), reminder, categoryId, repeat, description }],
 				})),
 			deleteText: (id) =>
 				set((state) => ({

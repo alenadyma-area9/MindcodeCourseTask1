@@ -281,6 +281,18 @@ function App() {
 		return plainText;
 	};
 
+	const formatCreationTime = (timestamp?: number): string => {
+		if (!timestamp) return 'New task';
+		const date = new Date(timestamp);
+		return date.toLocaleDateString('en-US', {
+			month: 'short',
+			day: 'numeric',
+			hour: '2-digit',
+			minute: '2-digit',
+			hour12: false
+		});
+	};
+
 	const handleSaveCategory = () => {
 		if (newCategoryName.trim()) {
 			if (editingCategory) {
@@ -809,7 +821,9 @@ function App() {
 								<div className="task-content">
 									<div className="task-text-wrapper">
 										{/* Line 1: Title */}
-										<p className={`task-text ${task.text === '(No title)' ? 'no-title' : ''}`}>{task.text}</p>
+										<p className={`task-text ${task.text === '(No title)' ? 'no-title' : ''}`}>
+											{task.text === '(No title)' ? formatCreationTime(task.createdAt) : task.text}
+										</p>
 
 										{/* Line 2: Description preview (if exists) */}
 										{task.description && (
