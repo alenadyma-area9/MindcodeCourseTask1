@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 import Select from 'react-select';
+import ReactQuill from 'react-quill';
+import 'react-quill/dist/quill.snow.css';
 import useTextStore from './store/useTextStore';
 import type { CategoryItem } from './store/useTextStore';
 import './App.css';
@@ -53,6 +55,9 @@ function App() {
 	const [newCategoryName, setNewCategoryName] = useState('');
 	const [newCategoryColor, setNewCategoryColor] = useState(AVAILABLE_COLORS[0]);
 	const [deleteCategoryId, setDeleteCategoryId] = useState<string | null>(null);
+	const [showDescription, setShowDescription] = useState(false);
+	const [description, setDescription] = useState('');
+	const [viewingDescription, setViewingDescription] = useState<string | null>(null);
 
 	// Global state from our Zustand store
 	const { savedTexts, categories, addText, deleteText, toggleComplete, updateText, addCategory, updateCategory, deleteCategory } = useTextStore();
@@ -97,13 +102,17 @@ function App() {
 			// Remove hashtags from text before saving
 			const cleanText = currentText.replace(/#\w+/g, '').trim();
 
+			// Get description, remove if empty
+			const trimmedDescription = description.trim();
+			const descriptionToSave = trimmedDescription ? description : undefined;
+
 			if (editingId) {
 				// Update existing task
-				updateText(editingId, cleanText, selectedReminder, selectedCategoryId, selectedReminder ? selectedRepeat : undefined);
+				updateText(editingId, cleanText, selectedReminder, selectedCategoryId, selectedReminder ? selectedRepeat : undefined, descriptionToSave);
 				setEditingId(null);
 			} else {
 				// Add new task
-				addText(cleanText, selectedReminder, selectedCategoryId, selectedReminder ? selectedRepeat : undefined);
+				addText(cleanText, selectedReminder, selectedCategoryId, selectedReminder ? selectedRepeat : undefined, descriptionToSave);
 			}
 			setCurrentText(''); // Clear the input for the next entry
 			setSelectedReminder(undefined);
@@ -111,15 +120,23 @@ function App() {
 			setSelectedRepeat('none');
 			setCustomDate(getTomorrowDate());
 			setCustomTime('');
+			setDescription('');
+			setShowDescription(false);
 		}
 	};
 
-	const handleEdit = (id: string, text: string, reminder?: string, categoryId?: string, repeat?: RepeatOption) => {
+	const handleEdit = (id: string, text: string, reminder?: string, categoryId?: string, repeat?: RepeatOption, description?: string) => {
 		setCurrentText(text);
 		setEditingId(id);
 		setSelectedReminder(reminder);
 		setSelectedCategoryId(categoryId);
 		setSelectedRepeat(repeat || 'none');
+		setDescription(description || '');
+
+		// Show description editor if task has description
+		if (description) {
+			setShowDescription(true);
+		}
 
 		// If task has a reminder, set the date and time from it
 		if (reminder) {
@@ -501,10 +518,45 @@ function App() {
 							<span className="meta-tooltip">Set category</span>
 						</button>
 					)}
+
+					{/* Notes/Description icon */}
+					<button
+						className={`meta-icon-btn ${showDescription ? 'active' : ''}`}
+						onClick={() => {
+							setShowDescription(!showDescription);
+							setShowReminderPicker(false);
+							setShowCategoryPicker(false);
+						}}
+					>
+						📝
+						<span className="meta-tooltip">Add details</span>
+					</button>
 				</div>
 
 				{currentText.length === 500 && (
 					<p className="limit-warning">Turn big goals into bite-sized wins. Max 500 symbols.</p>
+				)}
+
+				{/* Description/Notes Editor */}
+				{showDescription && (
+					<div className="description-editor">
+						<label className="description-label">Details</label>
+						<ReactQuill
+							value={description}
+							onChange={setDescription}
+							modules={{
+								toolbar: [
+									['bold', 'italic'],
+									[{ 'list': 'ordered'}, { 'list': 'bullet' }],
+									['link'],
+									['emoji']
+								]
+							}}
+							formats={['bold', 'italic', 'list', 'bullet', 'link']}
+							placeholder="Add details, notes, or checklist..."
+							theme="snow"
+						/>
+					</div>
 				)}
 
 				{/* Reminder Picker Popup */}
@@ -748,7 +800,7 @@ function App() {
 								<div className="task-content">
 									<div className="task-text-wrapper">
 										<p className="task-text">{task.text}</p>
-										{(task.categoryId || task.reminder) && (
+										{(task.categoryId || task.reminder || task.description) && (
 											<div className="task-meta">
 												{task.categoryId && (() => {
 													const category = getCategoryById(task.categoryId);
@@ -766,6 +818,15 @@ function App() {
 														⏰ {formatReminderTime(task.reminder)}{formatRepeat(task.repeat)}
 													</span>
 												)}
+												{task.description && (
+													<button
+														className="task-notes-icon"
+														onClick={() => setViewingDescription(task.description || null)}
+													>
+														📝
+														<span className="notes-tooltip">View details</span>
+													</button>
+												)}
 											</div>
 										)}
 									</div>
@@ -773,7 +834,7 @@ function App() {
 								<div className="task-actions">
 									<button
 										className="action-btn edit-btn"
-										onClick={() => handleEdit(task.id, task.text, task.reminder, task.categoryId, task.repeat)}
+										onClick={() => handleEdit(task.id, task.text, task.reminder, task.categoryId, task.repeat, task.description)}
 									>
 										✏️
 										<span className="action-tooltip">Edit task</span>
@@ -824,6 +885,19 @@ function App() {
 								No
 							</button>
 						</div>
+					</div>
+				</div>
+			)}
+
+			{/* View Description Modal */}
+			{viewingDescription && (
+				<div className="modal-overlay" onClick={() => setViewingDescription(null)}>
+					<div className="description-modal" onClick={(e) => e.stopPropagation()}>
+						<div className="modal-header">
+							<h3>Task Details</h3>
+							<button className="close-popup" onClick={() => setViewingDescription(null)}>✕</button>
+						</div>
+						<div className="description-content" dangerouslySetInnerHTML={{ __html: viewingDescription }} />
 					</div>
 				</div>
 			)}

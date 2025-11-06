@@ -13,6 +13,7 @@ export interface CategoryItem {
 export interface Task {
 	id: string;
 	text: string;
+	description?: string; // Rich text description/notes
 	completed: boolean;
 	completedAt?: number; // Timestamp when task was completed
 	reminder?: string;
@@ -32,10 +33,10 @@ const DEFAULT_CATEGORIES: CategoryItem[] = [
 interface TextState {
 	savedTexts: Task[];
 	categories: CategoryItem[];
-	addText: (newText: string, reminder?: string, categoryId?: string, repeat?: RepeatOption) => void;
+	addText: (newText: string, reminder?: string, categoryId?: string, repeat?: RepeatOption, description?: string) => void;
 	deleteText: (id: string) => void;
 	toggleComplete: (id: string) => void;
-	updateText: (id: string, newText: string, reminder?: string, categoryId?: string, repeat?: RepeatOption) => void;
+	updateText: (id: string, newText: string, reminder?: string, categoryId?: string, repeat?: RepeatOption, description?: string) => void;
 	addCategory: (name: string, color: string) => void;
 	updateCategory: (id: string, name: string, color: string) => void;
 	deleteCategory: (id: string) => void;
@@ -46,9 +47,9 @@ const useTextStore = create<TextState>()(
 		(set) => ({
 			savedTexts: [],
 			categories: DEFAULT_CATEGORIES,
-			addText: (newText, reminder, categoryId, repeat) =>
+			addText: (newText, reminder, categoryId, repeat, description) =>
 				set((state) => ({
-					savedTexts: [...state.savedTexts, { id: uuidv4(), text: newText, completed: false, reminder, categoryId, repeat }],
+					savedTexts: [...state.savedTexts, { id: uuidv4(), text: newText, completed: false, reminder, categoryId, repeat, description }],
 				})),
 			deleteText: (id) =>
 				set((state) => ({
@@ -62,10 +63,10 @@ const useTextStore = create<TextState>()(
 							: task
 					),
 				})),
-			updateText: (id, newText, reminder, categoryId, repeat) =>
+			updateText: (id, newText, reminder, categoryId, repeat, description) =>
 				set((state) => ({
 					savedTexts: state.savedTexts.map((task) =>
-						task.id === id ? { ...task, text: newText, reminder, categoryId, repeat } : task
+						task.id === id ? { ...task, text: newText, reminder, categoryId, repeat, description } : task
 					),
 				})),
 			addCategory: (name, color) =>
