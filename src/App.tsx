@@ -125,8 +125,15 @@ function App() {
 		if (reminder) {
 			const reminderDate = new Date(reminder);
 			setCustomDate(reminderDate);
-			const timeStr = reminderDate.toTimeString().slice(0, 5);
-			setCustomTime(timeStr);
+
+			// Check if time was explicitly set (seconds !== 1)
+			const isTimeNotSet = reminderDate.getHours() === 9 && reminderDate.getMinutes() === 0 && reminderDate.getSeconds() === 1;
+			if (isTimeNotSet) {
+				setCustomTime(''); // Time wasn't set, keep it empty
+			} else {
+				const timeStr = reminderDate.toTimeString().slice(0, 5);
+				setCustomTime(timeStr);
+			}
 		} else {
 			// Only use defaults if no reminder
 			setCustomDate(getTomorrowDate());
@@ -195,9 +202,16 @@ function App() {
 	const setCustomReminder = () => {
 		if (customDate) {
 			const dateStr = customDate.toISOString().split('T')[0];
-			// Use 09:00 as default if no time is selected
-			const timeToUse = customTime || '09:00';
-			const reminderDate = new Date(`${dateStr}T${timeToUse}`);
+			let reminderDate: Date;
+
+			if (customTime) {
+				// User explicitly set time - store with 0 seconds
+				reminderDate = new Date(`${dateStr}T${customTime}:00`);
+			} else {
+				// Time not set - use 09:00 with 1 second as marker
+				reminderDate = new Date(`${dateStr}T09:00:01`);
+			}
+
 			setSelectedReminder(reminderDate.toISOString());
 			setShowReminderPicker(false);
 			setShowAdvancedReminder(false);
@@ -286,15 +300,16 @@ function App() {
 		const isToday = date.toDateString() === now.toDateString();
 		const isTomorrow = date.toDateString() === new Date(now.getTime() + 86400000).toDateString();
 		const isSameYear = date.getFullYear() === now.getFullYear();
-		const isDefaultTime = date.getHours() === 9 && date.getMinutes() === 0;
+		// Check if time was not explicitly set (marker: 09:00:01)
+		const isTimeNotSet = date.getHours() === 9 && date.getMinutes() === 0 && date.getSeconds() === 1;
 
 		const timeStr = date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
 
-		// For today/tomorrow with default time, show only the label without time
-		if (isToday && isDefaultTime) return 'Today';
-		if (isTomorrow && isDefaultTime) return 'Tomorrow';
+		// For today/tomorrow with time not set, show only the label without time
+		if (isToday && isTimeNotSet) return 'Today';
+		if (isTomorrow && isTimeNotSet) return 'Tomorrow';
 
-		// For today/tomorrow with custom time, show label and time
+		// For today/tomorrow with time set, show label and time
 		if (isToday) return `Today, ${timeStr}`;
 		if (isTomorrow) return `Tomorrow, ${timeStr}`;
 
@@ -309,8 +324,8 @@ function App() {
 			dateFormatOptions.year = 'numeric';
 		}
 
-		// Add time only if it's not the default 09:00
-		if (!isDefaultTime) {
+		// Add time only if it was explicitly set by user
+		if (!isTimeNotSet) {
 			dateFormatOptions.hour = '2-digit';
 			dateFormatOptions.minute = '2-digit';
 			dateFormatOptions.hour12 = false;
@@ -378,8 +393,21 @@ function App() {
 						<div
 							className="selected-reminder clickable-chip"
 							onClick={() => {
-								setShowReminderPicker(!showReminderPicker);
+								const isOpening = !showReminderPicker;
+								setShowReminderPicker(isOpening);
 								setShowCategoryPicker(false);
+
+								// Auto-expand advanced settings if opening and has custom time or recurrence
+								if (isOpening && selectedReminder) {
+									const reminderDate = new Date(selectedReminder);
+									// Check if time was explicitly set (seconds !== 1)
+									const hasCustomTime = !(reminderDate.getHours() === 9 && reminderDate.getMinutes() === 0 && reminderDate.getSeconds() === 1);
+									const hasRecurrence = selectedRepeat && selectedRepeat !== 'none';
+
+									if (hasCustomTime || hasRecurrence) {
+										setShowAdvancedReminder(true);
+									}
+								}
 							}}
 						>
 							<span>⏰ {formatReminderTime(selectedReminder)}{formatRepeat(selectedRepeat)}</span>

@@ -114,8 +114,15 @@
 }
 
 .task-item.completed {
-	opacity: 0.6;
 	background: #f9f9f9;
+}
+
+.task-item.completed .task-category-tag {
+	opacity: 0.8;
+}
+
+.task-item.completed .task-reminder {
+	opacity: 0.8;
 }
 
 .checkbox-wrapper {
@@ -160,6 +167,16 @@
 	opacity: 1;
 }
 
+.task-item.completed .checkbox-tooltip,
+.task-item.completed .action-tooltip {
+	opacity: 0;
+}
+
+.task-item.completed .checkbox-wrapper:hover .checkbox-tooltip,
+.task-item.completed .action-btn:hover .action-tooltip {
+	opacity: 1;
+}
+
 .task-content {
 	display: flex;
 	align-items: flex-start;
@@ -179,7 +196,7 @@
 
 .task-item.completed .task-text {
 	text-decoration: line-through;
-	color: #999;
+	color: #666666;
 }
 
 .task-meta {
