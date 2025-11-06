@@ -274,9 +274,9 @@ function App() {
 			.replace(/\n/g, ' ') // Replace line breaks with spaces
 			.trim();
 
-		// Truncate to approximately 2 lines (about 100 characters)
-		if (plainText.length > 100) {
-			return plainText.substring(0, 100) + '...';
+		// Truncate to approximately 2 lines (about 200 characters for more content)
+		if (plainText.length > 200) {
+			return plainText.substring(0, 200) + '...';
 		}
 		return plainText;
 	};
@@ -831,7 +831,6 @@ function App() {
 												className="task-description-preview"
 												onClick={() => setViewingDescription(task.description || null)}
 											>
-												<span className="description-icon">📝</span>
 												<span className="description-text">{getDescriptionPreview(task.description)}</span>
 											</div>
 										)}
