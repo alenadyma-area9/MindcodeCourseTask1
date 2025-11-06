@@ -67,9 +67,10 @@ function App() {
 	const [showReminderPickerInPopup, setShowReminderPickerInPopup] = useState(false);
 	const [showCategoryPickerInPopup, setShowCategoryPickerInPopup] = useState(false);
 	const [isEditingDescription, setIsEditingDescription] = useState(false);
+	const [draggedCategoryIndex, setDraggedCategoryIndex] = useState<number | null>(null);
 
 	// Global state from our Zustand store
-	const { savedTexts, categories, addText, deleteText, toggleComplete, archiveTask, updateText, addCategory, updateCategory, deleteCategory } = useTextStore();
+	const { savedTexts, categories, addText, deleteText, toggleComplete, archiveTask, updateText, addCategory, updateCategory, deleteCategory, reorderCategories } = useTextStore();
 
 	// Parse hashtags from text to auto-detect categories
 	useEffect(() => {
@@ -411,6 +412,28 @@ function App() {
 		setNewCategoryColor(AVAILABLE_COLORS[0]);
 	};
 
+	const handleDragStart = (e: React.DragEvent, index: number) => {
+		setDraggedCategoryIndex(index);
+		e.dataTransfer.effectAllowed = 'move';
+	};
+
+	const handleDragOver = (e: React.DragEvent) => {
+		e.preventDefault();
+		e.dataTransfer.dropEffect = 'move';
+	};
+
+	const handleDrop = (e: React.DragEvent, dropIndex: number) => {
+		e.preventDefault();
+		if (draggedCategoryIndex !== null && draggedCategoryIndex !== dropIndex) {
+			reorderCategories(draggedCategoryIndex, dropIndex);
+		}
+		setDraggedCategoryIndex(null);
+	};
+
+	const handleDragEnd = () => {
+		setDraggedCategoryIndex(null);
+	};
+
 	const formatReminderTime = (isoString: string) => {
 		const date = new Date(isoString);
 		const now = new Date();
@@ -519,8 +542,55 @@ function App() {
 	return (
 		<div className="app">
 			<div className="header">
-				<h1>Daily Focus</h1>
-				<p className="header-date">{dateString}</p>
+				<div className="header-left">
+					<h1>Daily Focus</h1>
+					<p className="header-date">{dateString}</p>
+				</div>
+				<div className="header-right">
+					{totalTasks > 0 && (
+						<div className="pie-chart-container" title={`${completedTasks} of ${totalTasks} tasks completed`}>
+							<svg width="80" height="80" viewBox="0 0 80 80" className="pie-chart">
+								{/* Background circle (grey) */}
+								<circle
+									cx="40"
+									cy="40"
+									r="35"
+									fill="none"
+									stroke="#E0E0E0"
+									strokeWidth="10"
+								/>
+								{/* Completed portion (green) */}
+								{completionPercentage > 0 && (
+									<circle
+										cx="40"
+										cy="40"
+										r="35"
+										fill="none"
+										stroke="#006642"
+										strokeWidth="10"
+										strokeDasharray={`${(completionPercentage / 100) * 220} 220`}
+										strokeDashoffset="0"
+										transform="rotate(-90 40 40)"
+										strokeLinecap="round"
+									/>
+								)}
+								{/* Center text */}
+								<text
+									x="40"
+									y="40"
+									textAnchor="middle"
+									dominantBaseline="central"
+									className="pie-chart-text"
+									fontSize="18"
+									fontWeight="600"
+									fill="#333333"
+								>
+									{Math.round(completionPercentage)}%
+								</text>
+							</svg>
+						</div>
+					)}
+				</div>
 			</div>
 
 			{/* Input form for adding new text */}
@@ -951,7 +1021,7 @@ function App() {
 						<h3>Delete Task?</h3>
 						<p>Do you want to delete this task?</p>
 						<div className="modal-actions">
-							<button className="modal-btn yes-btn" onClick={confirmDelete}>
+							<button className="modal-btn yes-btn" onClick={confirmDelete} autoFocus>
 								Yes
 							</button>
 							<button className="modal-btn no-btn" onClick={cancelDelete}>
@@ -969,7 +1039,7 @@ function App() {
 						<h3>Delete Category?</h3>
 						<p>This category will be removed from all tasks using it.</p>
 						<div className="modal-actions">
-							<button className="modal-btn yes-btn" onClick={confirmDeleteCategory}>
+							<button className="modal-btn yes-btn" onClick={confirmDeleteCategory} autoFocus>
 								Yes
 							</button>
 							<button className="modal-btn no-btn" onClick={cancelDeleteCategory}>
@@ -1473,9 +1543,18 @@ function App() {
 						{/* Existing Categories List */}
 						<div className="categories-list">
 							<h4>Your Categories</h4>
-							{categories.map(cat => (
-								<div key={cat.id} className="category-item">
+							{categories.map((cat, index) => (
+								<div
+									key={cat.id}
+									className={`category-item ${draggedCategoryIndex === index ? 'dragging' : ''}`}
+									draggable
+									onDragStart={(e) => handleDragStart(e, index)}
+									onDragOver={handleDragOver}
+									onDrop={(e) => handleDrop(e, index)}
+									onDragEnd={handleDragEnd}
+								>
 									<div className="category-item-info">
+										<span className="drag-handle">⋮⋮</span>
 										<span className="category-item-chip" style={{ backgroundColor: cat.color }}>
 											#{cat.name.toLowerCase()}
 										</span>

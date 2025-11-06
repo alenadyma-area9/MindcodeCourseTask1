@@ -43,6 +43,7 @@ interface TextState {
 	addCategory: (name: string, color: string) => void;
 	updateCategory: (id: string, name: string, color: string) => void;
 	deleteCategory: (id: string) => void;
+	reorderCategories: (startIndex: number, endIndex: number) => void;
 }
 
 const useTextStore = create<TextState>()(
@@ -96,6 +97,13 @@ const useTextStore = create<TextState>()(
 						task.categoryId === id ? { ...task, categoryId: undefined } : task
 					),
 				})),
+			reorderCategories: (startIndex, endIndex) =>
+				set((state) => {
+					const newCategories = Array.from(state.categories);
+					const [removed] = newCategories.splice(startIndex, 1);
+					newCategories.splice(endIndex, 0, removed);
+					return { categories: newCategories };
+				}),
 		}),
 		{
 			name: 'text-storage',
