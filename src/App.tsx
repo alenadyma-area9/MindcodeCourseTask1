@@ -469,6 +469,19 @@ function App() {
 
 				{/* Category and Reminder Icons + Info Below Input */}
 				<div className="input-meta">
+					{/* Notes/Description icon */}
+					<button
+						className={`meta-icon-btn ${showDescription ? 'active' : ''}`}
+						onClick={() => {
+							setShowDescription(!showDescription);
+							setShowReminderPicker(false);
+							setShowCategoryPicker(false);
+						}}
+					>
+						📝
+						<span className="meta-tooltip">Add details</span>
+					</button>
+
 					{/* Show reminder icon OR selected reminder chip */}
 					{selectedReminder ? (
 						<div
@@ -551,19 +564,6 @@ function App() {
 							<span className="meta-tooltip">Set category</span>
 						</button>
 					)}
-
-					{/* Notes/Description icon */}
-					<button
-						className={`meta-icon-btn ${showDescription ? 'active' : ''}`}
-						onClick={() => {
-							setShowDescription(!showDescription);
-							setShowReminderPicker(false);
-							setShowCategoryPicker(false);
-						}}
-					>
-						📝
-						<span className="meta-tooltip">Add details</span>
-					</button>
 				</div>
 
 				{currentText.length === 500 && (
