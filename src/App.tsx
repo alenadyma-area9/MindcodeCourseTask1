@@ -2,8 +2,7 @@ import { useState, useEffect } from 'react';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 import Select from 'react-select';
-import ReactQuill from 'react-quill';
-import 'react-quill/dist/quill.snow.css';
+import RichTextEditor, { formatTextToHtml } from './components/RichTextEditor';
 import useTextStore from './store/useTextStore';
 import type { CategoryItem } from './store/useTextStore';
 import './App.css';
@@ -541,20 +540,10 @@ function App() {
 				{showDescription && (
 					<div className="description-editor">
 						<label className="description-label">Details</label>
-						<ReactQuill
+						<RichTextEditor
 							value={description}
 							onChange={setDescription}
-							modules={{
-								toolbar: [
-									['bold', 'italic'],
-									[{ 'list': 'ordered'}, { 'list': 'bullet' }],
-									['link'],
-									['emoji']
-								]
-							}}
-							formats={['bold', 'italic', 'list', 'bullet', 'link']}
 							placeholder="Add details, notes, or checklist..."
-							theme="snow"
 						/>
 					</div>
 				)}
@@ -897,7 +886,7 @@ function App() {
 							<h3>Task Details</h3>
 							<button className="close-popup" onClick={() => setViewingDescription(null)}>✕</button>
 						</div>
-						<div className="description-content" dangerouslySetInnerHTML={{ __html: viewingDescription }} />
+						<div className="description-content" dangerouslySetInnerHTML={{ __html: formatTextToHtml(viewingDescription) }} />
 					</div>
 				</div>
 			)}
