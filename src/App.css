@@ -194,6 +194,12 @@
 	color: #333333;
 }
 
+/* Style for tasks with no title */
+.task-text.no-title {
+	color: #999999;
+	font-style: italic;
+}
+
 .task-item.completed .task-text {
 	text-decoration: line-through;
 	color: #666666;

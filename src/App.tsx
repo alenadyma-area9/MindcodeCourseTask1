@@ -97,21 +97,25 @@ function App() {
 	}, [showReminderPicker, showCategoryPicker]);
 
 	const handleAdd = () => {
-		if (currentText.trim()) {
-			// Remove hashtags from text before saving
-			const cleanText = currentText.replace(/#\w+/g, '').trim();
+		// Remove hashtags from text before saving
+		const cleanText = currentText.replace(/#\w+/g, '').trim();
 
-			// Get description, remove if empty
-			const trimmedDescription = description.trim();
-			const descriptionToSave = trimmedDescription ? description : undefined;
+		// Get description, remove if empty
+		const trimmedDescription = description.trim();
+		const descriptionToSave = trimmedDescription ? description : undefined;
+
+		// Allow saving if either title OR description exists
+		if (cleanText || descriptionToSave) {
+			// Use placeholder title if empty
+			const titleToSave = cleanText || '(No title)';
 
 			if (editingId) {
 				// Update existing task
-				updateText(editingId, cleanText, selectedReminder, selectedCategoryId, selectedReminder ? selectedRepeat : undefined, descriptionToSave);
+				updateText(editingId, titleToSave, selectedReminder, selectedCategoryId, selectedReminder ? selectedRepeat : undefined, descriptionToSave);
 				setEditingId(null);
 			} else {
 				// Add new task
-				addText(cleanText, selectedReminder, selectedCategoryId, selectedReminder ? selectedRepeat : undefined, descriptionToSave);
+				addText(titleToSave, selectedReminder, selectedCategoryId, selectedReminder ? selectedRepeat : undefined, descriptionToSave);
 			}
 			setCurrentText(''); // Clear the input for the next entry
 			setSelectedReminder(undefined);
@@ -805,7 +809,7 @@ function App() {
 								<div className="task-content">
 									<div className="task-text-wrapper">
 										{/* Line 1: Title */}
-										<p className="task-text">{task.text}</p>
+										<p className={`task-text ${task.text === '(No title)' ? 'no-title' : ''}`}>{task.text}</p>
 
 										{/* Line 2: Description preview (if exists) */}
 										{task.description && (
