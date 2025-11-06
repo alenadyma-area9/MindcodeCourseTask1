@@ -15,6 +15,7 @@ export interface Task {
 	text: string;
 	description?: string; // Rich text description/notes
 	completed: boolean;
+	archived?: boolean; // Whether task is archived
 	createdAt?: number; // Timestamp when task was created
 	completedAt?: number; // Timestamp when task was completed
 	reminder?: string;
@@ -37,6 +38,7 @@ interface TextState {
 	addText: (newText: string, reminder?: string, categoryId?: string, repeat?: RepeatOption, description?: string) => void;
 	deleteText: (id: string) => void;
 	toggleComplete: (id: string) => void;
+	archiveTask: (id: string) => void;
 	updateText: (id: string, newText: string, reminder?: string, categoryId?: string, repeat?: RepeatOption, description?: string) => void;
 	addCategory: (name: string, color: string) => void;
 	updateCategory: (id: string, name: string, color: string) => void;
@@ -62,6 +64,12 @@ const useTextStore = create<TextState>()(
 						task.id === id
 							? { ...task, completed: !task.completed, completedAt: !task.completed ? Date.now() : undefined }
 							: task
+					),
+				})),
+			archiveTask: (id) =>
+				set((state) => ({
+					savedTexts: state.savedTexts.map((task) =>
+						task.id === id ? { ...task, archived: true } : task
 					),
 				})),
 			updateText: (id, newText, reminder, categoryId, repeat, description) =>

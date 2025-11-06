@@ -58,8 +58,18 @@ function App() {
 	const [description, setDescription] = useState('');
 	const [viewingTask, setViewingTask] = useState<string | null>(null);
 
+	// Editing state for task details popup
+	const [editingTaskTitle, setEditingTaskTitle] = useState('');
+	const [editingTaskDescription, setEditingTaskDescription] = useState('');
+	const [editingTaskReminder, setEditingTaskReminder] = useState<string | undefined>(undefined);
+	const [editingTaskCategory, setEditingTaskCategory] = useState<string | undefined>(undefined);
+	const [editingTaskRepeat, setEditingTaskRepeat] = useState<RepeatOption>('none');
+	const [showReminderPickerInPopup, setShowReminderPickerInPopup] = useState(false);
+	const [showCategoryPickerInPopup, setShowCategoryPickerInPopup] = useState(false);
+	const [isEditingDescription, setIsEditingDescription] = useState(false);
+
 	// Global state from our Zustand store
-	const { savedTexts, categories, addText, deleteText, toggleComplete, updateText, addCategory, updateCategory, deleteCategory } = useTextStore();
+	const { savedTexts, categories, addText, deleteText, toggleComplete, archiveTask, updateText, addCategory, updateCategory, deleteCategory } = useTextStore();
 
 	// Parse hashtags from text to auto-detect categories
 	useEffect(() => {
@@ -72,6 +82,47 @@ function App() {
 			}
 		}
 	}, [currentText, categories, selectedCategoryId]);
+
+	// Initialize editing state when viewing task
+	useEffect(() => {
+		if (viewingTask) {
+			const task = savedTexts.find(t => t.id === viewingTask);
+			if (task) {
+				setEditingTaskTitle(task.text);
+				setEditingTaskDescription(task.description || '');
+				setEditingTaskReminder(task.reminder);
+				setEditingTaskCategory(task.categoryId);
+				setEditingTaskRepeat(task.repeat || 'none');
+				setIsEditingDescription(false);
+
+				// Set custom date/time if has reminder
+				if (task.reminder) {
+					const reminderDate = new Date(task.reminder);
+					setCustomDate(reminderDate);
+
+					const isTimeNotSet = reminderDate.getHours() === 9 && reminderDate.getMinutes() === 0 && reminderDate.getSeconds() === 1;
+					if (isTimeNotSet) {
+						setCustomTime('');
+					} else {
+						const timeStr = reminderDate.toTimeString().slice(0, 5);
+						setCustomTime(timeStr);
+					}
+				} else {
+					setCustomDate(getTomorrowDate());
+					setCustomTime('');
+				}
+
+				// Auto-expand textarea after content is set
+				setTimeout(() => {
+					const textarea = document.querySelector('.task-details-title-input') as HTMLTextAreaElement;
+					if (textarea) {
+						textarea.style.height = 'auto';
+						textarea.style.height = textarea.scrollHeight + 'px';
+					}
+				}, 0);
+			}
+		}
+	}, [viewingTask, savedTexts]);
 
 	// Close popups when clicking outside
 	useEffect(() => {
@@ -88,13 +139,29 @@ function App() {
 			if (showCategoryPicker && !target.closest('.category-popup') && !target.closest('.meta-icon-btn') && !target.closest('.clickable-chip')) {
 				setShowCategoryPicker(false);
 			}
+
+			// Check if click is outside reminder popup in modal
+			if (showReminderPickerInPopup && !target.closest('.popup-inline') && !target.closest('.meta-icon-btn') && !target.closest('.clickable-chip')) {
+				setShowReminderPickerInPopup(false);
+				setShowAdvancedReminder(false);
+			}
+
+			// Check if click is outside category popup in modal
+			if (showCategoryPickerInPopup && !target.closest('.popup-inline') && !target.closest('.meta-icon-btn') && !target.closest('.clickable-chip')) {
+				setShowCategoryPickerInPopup(false);
+			}
+
+			// Check if click is outside description editor in modal
+			if (isEditingDescription && !target.closest('.rich-text-editor') && !target.closest('.clickable-description') && target.closest('.task-details-modal')) {
+				setIsEditingDescription(false);
+			}
 		};
 
 		document.addEventListener('mousedown', handleClickOutside);
 		return () => {
 			document.removeEventListener('mousedown', handleClickOutside);
 		};
-	}, [showReminderPicker, showCategoryPicker]);
+	}, [showReminderPicker, showCategoryPicker, showReminderPickerInPopup, showCategoryPickerInPopup, isEditingDescription]);
 
 	const handleAdd = () => {
 		// Remove hashtags from text before saving
@@ -106,8 +173,8 @@ function App() {
 
 		// Allow saving if either title OR description exists
 		if (cleanText || descriptionToSave) {
-			// Use placeholder title if empty
-			const titleToSave = cleanText || '(No title)';
+			// Use creation date as title if empty
+			const titleToSave = cleanText || formatCreationTime(Date.now());
 
 			if (editingId) {
 				// Update existing task
@@ -395,11 +462,14 @@ function App() {
 		return 'normal';
 	};
 
+	// Filter out archived tasks
+	const activeTasks = savedTexts.filter(task => !task.archived);
+
 	// Sort tasks:
 	// 1. Incomplete with reminders (earliest first)
 	// 2. Incomplete without reminders
 	// 3. Completed (most recently completed first)
-	const sortedTasks = [...savedTexts].sort((a, b) => {
+	const sortedTasks = [...activeTasks].sort((a, b) => {
 		// Both completed - sort by completion time (most recent first)
 		if (a.completed && b.completed) {
 			const aTime = a.completedAt || 0;
@@ -432,9 +502,9 @@ function App() {
 		return 0;
 	});
 
-	// Calculate task statistics
-	const totalTasks = savedTexts.length;
-	const completedTasks = savedTexts.filter(task => task.completed).length;
+	// Calculate task statistics (excluding archived tasks)
+	const totalTasks = activeTasks.length;
+	const completedTasks = activeTasks.filter(task => task.completed).length;
 	const incompleteTasks = totalTasks - completedTasks;
 	const completionPercentage = totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0;
 
@@ -461,8 +531,8 @@ function App() {
 						value={currentText}
 						onChange={(e) => setCurrentText(e.target.value)}
 						onKeyDown={(e) => e.key === 'Enter' && e.ctrlKey && handleAdd()}
-						placeholder="What do you need to do?"
-						maxLength={500}
+						placeholder="What's your next task?"
+						maxLength={250}
 					/>
 					<button onClick={handleAdd}>{editingId ? 'UPDATE' : 'ADD TASK'}</button>
 				</div>
@@ -564,24 +634,9 @@ function App() {
 							<span className="meta-tooltip">Set category</span>
 						</button>
 					)}
-				</div>
 
-				{currentText.length === 500 && (
-					<p className="limit-warning">Turn big goals into bite-sized wins. Max 500 symbols.</p>
-				)}
-
-				{/* Description/Notes Editor */}
-				{showDescription && (
-					<RichTextEditor
-						value={description}
-						onChange={setDescription}
-						placeholder="Add details, notes, or checklist..."
-						autoFocus={true}
-					/>
-				)}
-
-				{/* Reminder Picker Popup */}
-				{showReminderPicker && (
+					{/* Reminder Picker Popup */}
+					{showReminderPicker && (
 					<div className="reminder-popup">
 						<div className="reminder-header">
 							<h3>Reminder</h3>
@@ -785,6 +840,21 @@ function App() {
 						<p className="category-tip">💡 Tip: Type #{categories[0]?.name.toLowerCase()} in your task to auto-tag!</p>
 					</div>
 				)}
+				</div>
+
+				{currentText.length === 250 && (
+					<p className="limit-warning">Turn big goals into bite-sized wins. Max 250 symbols.</p>
+				)}
+
+				{/* Description/Notes Editor */}
+				{showDescription && (
+					<RichTextEditor
+						value={description}
+						onChange={setDescription}
+						placeholder="Add details"
+						autoFocus={true}
+					/>
+				)}
 			</div>
 
 			{/* Display the list of saved texts */}
@@ -825,8 +895,8 @@ function App() {
 								<div className="task-content">
 									<div className="task-text-wrapper">
 										{/* Line 1: Title */}
-										<p className={`task-text ${task.text === '(No title)' ? 'no-title' : ''}`}>
-											{task.text === '(No title)' ? formatCreationTime(task.createdAt) : task.text}
+										<p className="task-text">
+											{task.text}
 										</p>
 
 										{/* Line 2: Description preview (if exists) */}
@@ -861,18 +931,11 @@ function App() {
 								</div>
 								<div className="task-actions" onClick={(e) => e.stopPropagation()}>
 									<button
-										className="action-btn edit-btn"
-										onClick={() => handleEdit(task.id, task.text, task.reminder, task.categoryId, task.repeat, task.description)}
+										className="action-btn archive-btn"
+										onClick={() => archiveTask(task.id)}
 									>
-										✏️
-										<span className="action-tooltip">Edit task</span>
-									</button>
-									<button
-										className="action-btn delete-btn"
-										onClick={() => handleDelete(task.id)}
-									>
-										🗑️
-										<span className="action-tooltip">Delete task</span>
+										📥
+										<span className="action-tooltip">Archive task</span>
 									</button>
 								</div>
 							</div>
@@ -921,11 +984,27 @@ function App() {
 			{viewingTask && (() => {
 				const task = savedTexts.find(t => t.id === viewingTask);
 				if (!task) return null;
-				const category = getCategoryById(task.categoryId);
+				const category = getCategoryById(editingTaskCategory);
+
+				const handleClosePopup = () => {
+					// Save changes
+					updateText(
+						task.id,
+						editingTaskTitle,
+						editingTaskReminder,
+						editingTaskCategory,
+						editingTaskReminder ? editingTaskRepeat : undefined,
+						editingTaskDescription || undefined
+					);
+					setViewingTask(null);
+					setShowReminderPickerInPopup(false);
+					setShowCategoryPickerInPopup(false);
+				};
+
 				return (
-					<div className="modal-overlay" onClick={() => setViewingTask(null)}>
+					<div className="modal-overlay" onClick={handleClosePopup}>
 						<div className="task-details-modal" onClick={(e) => e.stopPropagation()}>
-							<button className="close-popup" onClick={() => setViewingTask(null)}>✕</button>
+							<button className="close-popup" onClick={handleClosePopup}>✕</button>
 
 							{/* Task Title with Checkbox */}
 							<div className="task-details-header">
@@ -940,45 +1019,386 @@ function App() {
 										{task.completed ? 'Mark as undone' : 'Mark as done'}
 									</span>
 								</div>
-								<h3 className={`task-details-title ${task.completed ? 'completed' : ''}`}>
-									{task.text === '(No title)' ? formatCreationTime(task.createdAt) : task.text}
-								</h3>
+								<textarea
+									className={`task-details-title-input ${task.completed ? 'completed' : ''}`}
+									value={editingTaskTitle}
+									onChange={(e) => setEditingTaskTitle(e.target.value)}
+									placeholder="What's your next task?"
+									maxLength={250}
+									rows={1}
+									onInput={(e) => {
+										// Auto-expand textarea
+										const target = e.target as HTMLTextAreaElement;
+										target.style.height = 'auto';
+										target.style.height = target.scrollHeight + 'px';
+									}}
+								/>
 							</div>
 
-							{/* Description/Details */}
-							{task.description && (
-								<div className="description-content" dangerouslySetInnerHTML={{ __html: formatTextToHtml(task.description) }} />
-							)}
+							{/* Description/Details - Editable */}
+							<div className="task-details-description">
+								{isEditingDescription ? (
+									<RichTextEditor
+										value={editingTaskDescription}
+										onChange={setEditingTaskDescription}
+										placeholder="Add details"
+										autoFocus={true}
+									/>
+								) : editingTaskDescription ? (
+									<div
+										className="description-content clickable-description"
+										onClick={() => setIsEditingDescription(true)}
+										dangerouslySetInnerHTML={{ __html: formatTextToHtml(editingTaskDescription) }}
+									/>
+								) : (
+									<div
+										className="description-placeholder"
+										onClick={() => setIsEditingDescription(true)}
+									>
+										Click to add details
+									</div>
+								)}
+							</div>
 
-							{/* Metadata - same style as task list */}
-							{(task.reminder || task.categoryId) && (
-								<div className="task-details-meta">
-									{task.reminder && (
-										<span className={`task-reminder ${getReminderUrgency(task.reminder)}`}>
-											⏰ {formatReminderTime(task.reminder)}{formatRepeat(task.repeat)}
-										</span>
-									)}
-									{category && (
-										<span
-											className="task-category-tag"
-											style={{ backgroundColor: category.color }}
+							{/* Metadata - Editable */}
+							<div className="task-details-meta-editable">
+								{/* Reminder */}
+								{editingTaskReminder ? (
+									<div
+										className="selected-reminder clickable-chip"
+										onClick={() => {
+											const isOpening = !showReminderPickerInPopup;
+											setShowReminderPickerInPopup(isOpening);
+											setShowCategoryPickerInPopup(false);
+
+											// Auto-expand advanced settings if opening and has custom time or recurrence
+											if (isOpening && editingTaskReminder) {
+												const reminderDate = new Date(editingTaskReminder);
+												const hasCustomTime = !(reminderDate.getHours() === 9 && reminderDate.getMinutes() === 0 && reminderDate.getSeconds() === 1);
+												const hasRecurrence = editingTaskRepeat && editingTaskRepeat !== 'none';
+
+												if (hasCustomTime || hasRecurrence) {
+													setShowAdvancedReminder(true);
+												}
+											}
+										}}
+									>
+										<span>⏰ {formatReminderTime(editingTaskReminder)}{formatRepeat(editingTaskRepeat)}</span>
+										<button
+											className="meta-remove"
+											onClick={(e) => {
+												e.stopPropagation();
+												setEditingTaskReminder(undefined);
+												setEditingTaskRepeat('none');
+											}}
 										>
-											#{category.name.toLowerCase()}
-										</span>
-									)}
-								</div>
-							)}
+											✕
+										</button>
+									</div>
+								) : (
+									<button
+										className="meta-icon-btn"
+										onClick={() => {
+											setShowReminderPickerInPopup(!showReminderPickerInPopup);
+											setShowCategoryPickerInPopup(false);
+										}}
+									>
+										🔔
+										<span className="meta-tooltip">Set reminder</span>
+									</button>
+								)}
+
+								{/* Category */}
+								{editingTaskCategory ? (() => {
+									const cat = getCategoryById(editingTaskCategory);
+									return cat ? (
+										<div
+											className="selected-category clickable-chip"
+											style={{ backgroundColor: cat.color }}
+											onClick={() => {
+												setShowCategoryPickerInPopup(!showCategoryPickerInPopup);
+												setShowReminderPickerInPopup(false);
+											}}
+										>
+											<span>#{cat.name.toLowerCase()}</span>
+											<button
+												className="meta-remove"
+												onClick={(e) => {
+													e.stopPropagation();
+													setEditingTaskCategory(undefined);
+												}}
+											>
+												✕
+											</button>
+										</div>
+									) : null;
+								})() : (
+									<button
+										className="meta-icon-btn"
+										onClick={() => {
+											setShowCategoryPickerInPopup(!showCategoryPickerInPopup);
+											setShowReminderPickerInPopup(false);
+										}}
+									>
+										🏷️
+										<span className="meta-tooltip">Set category</span>
+									</button>
+								)}
+
+								{/* Reminder Picker in Popup */}
+								{showReminderPickerInPopup && (
+									<div
+										className="reminder-popup popup-inline"
+										onClick={(e) => e.stopPropagation()}
+									>
+										<div className="reminder-header">
+											<h3>Reminder</h3>
+											<button className="close-popup" onClick={() => { setShowReminderPickerInPopup(false); setShowAdvancedReminder(false); }}>✕</button>
+										</div>
+
+										<div className="quick-reminders">
+											<button onClick={() => {
+												const now = new Date();
+												const reminderDate = new Date(now);
+												reminderDate.setHours(17, 0, 0, 0);
+												setEditingTaskReminder(reminderDate.toISOString());
+												setShowReminderPickerInPopup(false);
+											}}>
+												<span className="quick-time">Later Today</span>
+												<span className="quick-subtext">17:00</span>
+											</button>
+											<button onClick={() => {
+												const now = new Date();
+												const reminderDate = new Date(now);
+												reminderDate.setDate(now.getDate() + 1);
+												reminderDate.setHours(9, 0, 0, 0);
+												setEditingTaskReminder(reminderDate.toISOString());
+												setShowReminderPickerInPopup(false);
+											}}>
+												<span className="quick-time">Tomorrow Morning</span>
+												<span className="quick-subtext">09:00</span>
+											</button>
+											<button onClick={() => {
+												const now = new Date();
+												const reminderDate = new Date(now);
+												const daysUntilSaturday = (6 - now.getDay() + 7) % 7 || 7;
+												reminderDate.setDate(now.getDate() + daysUntilSaturday);
+												reminderDate.setHours(10, 0, 0, 0);
+												setEditingTaskReminder(reminderDate.toISOString());
+												setShowReminderPickerInPopup(false);
+											}}>
+												<span className="quick-time">This Weekend</span>
+												<span className="quick-subtext">Saturday 10:00</span>
+											</button>
+										</div>
+
+										<div className="advanced-expander">
+											<div className="expander-separator"></div>
+											<button
+												className="expander-button"
+												onClick={() => setShowAdvancedReminder(!showAdvancedReminder)}
+											>
+												<span className="expander-icon">📅</span>
+												<span className="expander-label">
+													{showAdvancedReminder ? 'Hide Advanced Settings' : 'Custom Time & Recurrence'}
+												</span>
+												<span className="expander-chevron">{showAdvancedReminder ? '▲' : '▼'}</span>
+											</button>
+
+											{showAdvancedReminder && (
+												<div className="advanced-content">
+													<div className="custom-datetime">
+														<div className="datetime-field">
+															<label>Date</label>
+															<DatePicker
+																selected={customDate}
+																onChange={(date: Date | null) => date && setCustomDate(date)}
+																dateFormat="dd/MM/yyyy"
+																calendarStartDay={1}
+																className="date-picker-input"
+																popperPlacement="bottom-start"
+																popperProps={{
+																	strategy: "fixed"
+																}}
+															/>
+														</div>
+														<div className="datetime-field">
+															<label>Time (optional)</label>
+															<div className="time-picker-custom">
+																<Select
+																	value={customTime ? { value: customTime.split(':')[0], label: customTime.split(':')[0] } : { value: '', label: 'HH' }}
+																	onChange={(option) => {
+																		if (option && option.value === '') {
+																			setCustomTime('');
+																		} else if (option) {
+																			const minutes = customTime ? customTime.split(':')[1] : '00';
+																			setCustomTime(`${option.value}:${minutes}`);
+																		}
+																	}}
+																	options={[
+																		{ value: '', label: '--' },
+																		...Array.from({ length: 24 }, (_, i) => {
+																			const hour = i.toString().padStart(2, '0');
+																			return { value: hour, label: hour };
+																		})
+																	]}
+																	className="time-select-container"
+																	classNamePrefix="time-select"
+																	isSearchable={true}
+																	menuPlacement="auto"
+																	placeholder="HH"
+																	filterOption={(option, inputValue) => {
+																		if (!inputValue) return true;
+																		if (option.value === '') return false;
+																		const numInput = parseInt(inputValue);
+																		const numOption = parseInt(option.value);
+																		return !isNaN(numInput) && numOption === numInput;
+																	}}
+																	onInputChange={(inputValue, { action }) => {
+																		if (action === 'input-change') {
+																			const num = parseInt(inputValue);
+																			if (!isNaN(num) && num >= 0 && num <= 23) {
+																				const hour = num.toString().padStart(2, '0');
+																				const minutes = customTime ? customTime.split(':')[1] : '00';
+																				setCustomTime(`${hour}:${minutes}`);
+																			}
+																		}
+																	}}
+																/>
+																<span className="time-separator">:</span>
+																<Select
+																	value={customTime ? { value: customTime.split(':')[1], label: customTime.split(':')[1] } : { value: '', label: 'MM' }}
+																	onChange={(option) => {
+																		if (option && option.value === '') {
+																			setCustomTime('');
+																		} else if (option) {
+																			const hours = customTime ? customTime.split(':')[0] : '09';
+																			setCustomTime(`${hours}:${option.value}`);
+																		}
+																	}}
+																	options={[
+																		{ value: '', label: '--' },
+																		...Array.from({ length: 60 }, (_, i) => {
+																			const minute = i.toString().padStart(2, '0');
+																			return { value: minute, label: minute };
+																		})
+																	]}
+																	className="time-select-container"
+																	classNamePrefix="time-select"
+																	isSearchable={true}
+																	menuPlacement="auto"
+																	placeholder="MM"
+																	filterOption={(option, inputValue) => {
+																		if (!inputValue) return true;
+																		if (option.value === '') return false;
+																		const numInput = parseInt(inputValue);
+																		const numOption = parseInt(option.value);
+																		return !isNaN(numInput) && numOption === numInput;
+																	}}
+																	onInputChange={(inputValue, { action }) => {
+																		if (action === 'input-change') {
+																			const num = parseInt(inputValue);
+																			if (!isNaN(num) && num >= 0 && num <= 59) {
+																				const minute = num.toString().padStart(2, '0');
+																				const hours = customTime ? customTime.split(':')[0] : '09';
+																				setCustomTime(`${hours}:${minute}`);
+																			}
+																		}
+																	}}
+																/>
+															</div>
+														</div>
+													</div>
+
+													<div className="repeat-field">
+														<label>Repeat</label>
+														<Select
+															value={REPEAT_OPTIONS.find(opt => opt.value === editingTaskRepeat)}
+															onChange={(option) => option && setEditingTaskRepeat(option.value as RepeatOption)}
+															options={REPEAT_OPTIONS}
+															className="repeat-select-container"
+															classNamePrefix="repeat-select"
+															isSearchable={false}
+															menuPlacement="auto"
+														/>
+													</div>
+
+													<button
+														className="set-button"
+														onClick={() => {
+															if (customDate) {
+																const dateStr = customDate.toISOString().split('T')[0];
+																let reminderDate: Date;
+
+																if (customTime) {
+																	reminderDate = new Date(`${dateStr}T${customTime}:00`);
+																} else {
+																	reminderDate = new Date(`${dateStr}T09:00:01`);
+																}
+
+																setEditingTaskReminder(reminderDate.toISOString());
+																setShowReminderPickerInPopup(false);
+																setShowAdvancedReminder(false);
+															}
+														}}
+														disabled={!customDate}
+													>
+														SET
+													</button>
+												</div>
+											)}
+										</div>
+									</div>
+								)}
+
+								{/* Category Picker in Popup */}
+								{showCategoryPickerInPopup && (
+									<div
+										className="category-popup popup-inline"
+										onClick={(e) => e.stopPropagation()}
+									>
+										<div className="category-header">
+											<h3>Choose Category</h3>
+											<button className="close-popup" onClick={() => setShowCategoryPickerInPopup(false)}>✕</button>
+										</div>
+										<div className="category-list">
+											{categories.map((cat) => (
+												<button
+													key={cat.id}
+													className="category-option"
+													style={{ borderLeftColor: cat.color, backgroundColor: cat.color }}
+													onClick={() => {
+														setEditingTaskCategory(cat.id);
+														setShowCategoryPickerInPopup(false);
+													}}
+												>
+													<span className="category-name">#{cat.name.toLowerCase()}</span>
+												</button>
+											))}
+										</div>
+										<button
+											className="manage-categories-btn"
+											onClick={() => {
+												setShowCategoryManager(true);
+												setShowCategoryPickerInPopup(false);
+											}}
+										>
+											⚙️ Manage Categories
+										</button>
+									</div>
+								)}
+							</div>
 
 							{/* Actions */}
 							<div className="task-details-actions">
 								<button
-									className="task-details-action-btn edit-action"
+									className="task-details-action-btn archive-action"
 									onClick={() => {
-										handleEdit(task.id, task.text, task.reminder, task.categoryId, task.repeat, task.description);
+										archiveTask(task.id);
 										setViewingTask(null);
 									}}
 								>
-									✏️
+									Archive Task
 								</button>
 								<button
 									className="task-details-action-btn delete-action"
@@ -987,7 +1407,7 @@ function App() {
 										setViewingTask(null);
 									}}
 								>
-									🗑️
+									Delete Task
 								</button>
 							</div>
 						</div>
