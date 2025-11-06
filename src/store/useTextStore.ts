@@ -14,6 +14,7 @@ export interface Task {
 	id: string;
 	text: string;
 	completed: boolean;
+	completedAt?: number; // Timestamp when task was completed
 	reminder?: string;
 	repeat?: RepeatOption;
 	categoryId?: string;
@@ -56,7 +57,9 @@ const useTextStore = create<TextState>()(
 			toggleComplete: (id) =>
 				set((state) => ({
 					savedTexts: state.savedTexts.map((task) =>
-						task.id === id ? { ...task, completed: !task.completed } : task
+						task.id === id
+							? { ...task, completed: !task.completed, completedAt: !task.completed ? Date.now() : undefined }
+							: task
 					),
 				})),
 			updateText: (id, newText, reminder, categoryId, repeat) =>

@@ -345,10 +345,41 @@ function App() {
 		return 'normal';
 	};
 
-	// Sort tasks: incomplete first, then completed
+	// Sort tasks:
+	// 1. Incomplete with reminders (earliest first)
+	// 2. Incomplete without reminders
+	// 3. Completed (most recently completed first)
 	const sortedTasks = [...savedTexts].sort((a, b) => {
-		if (a.completed === b.completed) return 0;
-		return a.completed ? 1 : -1;
+		// Both completed - sort by completion time (most recent first)
+		if (a.completed && b.completed) {
+			const aTime = a.completedAt || 0;
+			const bTime = b.completedAt || 0;
+			return bTime - aTime; // Descending (newest first)
+		}
+
+		// One completed, one not - incomplete comes first
+		if (a.completed !== b.completed) {
+			return a.completed ? 1 : -1;
+		}
+
+		// Both incomplete - sort by reminder date
+		const aHasReminder = !!a.reminder;
+		const bHasReminder = !!b.reminder;
+
+		// Both have reminders - sort by due date (earliest first)
+		if (aHasReminder && bHasReminder) {
+			const aDate = new Date(a.reminder!).getTime();
+			const bDate = new Date(b.reminder!).getTime();
+			return aDate - bDate; // Ascending (earliest first)
+		}
+
+		// One has reminder, one doesn't - reminder comes first
+		if (aHasReminder !== bHasReminder) {
+			return aHasReminder ? -1 : 1;
+		}
+
+		// Neither has reminder - maintain original order
+		return 0;
 	});
 
 	// Calculate task statistics
