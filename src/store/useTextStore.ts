@@ -39,6 +39,7 @@ interface TextState {
 	deleteText: (id: string) => void;
 	toggleComplete: (id: string) => void;
 	archiveTask: (id: string) => void;
+	unarchiveTask: (id: string) => void;
 	updateText: (id: string, newText: string, reminder?: string, categoryId?: string, repeat?: RepeatOption, description?: string) => void;
 	addCategory: (name: string, color: string) => void;
 	updateCategory: (id: string, name: string, color: string) => void;
@@ -71,6 +72,12 @@ const useTextStore = create<TextState>()(
 				set((state) => ({
 					savedTexts: state.savedTexts.map((task) =>
 						task.id === id ? { ...task, archived: true } : task
+					),
+				})),
+			unarchiveTask: (id) =>
+				set((state) => ({
+					savedTexts: state.savedTexts.map((task) =>
+						task.id === id ? { ...task, archived: false } : task
 					),
 				})),
 			updateText: (id, newText, reminder, categoryId, repeat, description) =>

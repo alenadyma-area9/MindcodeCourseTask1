@@ -68,9 +68,13 @@ function App() {
 	const [showCategoryPickerInPopup, setShowCategoryPickerInPopup] = useState(false);
 	const [isEditingDescription, setIsEditingDescription] = useState(false);
 	const [draggedCategoryIndex, setDraggedCategoryIndex] = useState<number | null>(null);
+	const [currentView, setCurrentView] = useState<'dates' | 'recent' | 'categories' | 'repeating' | 'archived'>('dates');
+	const [showViewDropdown, setShowViewDropdown] = useState(false);
+	const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
+	const [showDeleteAllArchivedConfirm, setShowDeleteAllArchivedConfirm] = useState(false);
 
 	// Global state from our Zustand store
-	const { savedTexts, categories, addText, deleteText, toggleComplete, archiveTask, updateText, addCategory, updateCategory, deleteCategory, reorderCategories } = useTextStore();
+	const { savedTexts, categories, addText, deleteText, toggleComplete, archiveTask, unarchiveTask, updateText, addCategory, updateCategory, deleteCategory, reorderCategories } = useTextStore();
 
 	// Parse hashtags from text to auto-detect categories
 	useEffect(() => {
@@ -156,13 +160,18 @@ function App() {
 			if (isEditingDescription && !target.closest('.rich-text-editor') && !target.closest('.clickable-description') && target.closest('.task-details-modal')) {
 				setIsEditingDescription(false);
 			}
+
+			// Check if click is outside view dropdown
+			if (showViewDropdown && !target.closest('.view-selector')) {
+				setShowViewDropdown(false);
+			}
 		};
 
 		document.addEventListener('mousedown', handleClickOutside);
 		return () => {
 			document.removeEventListener('mousedown', handleClickOutside);
 		};
-	}, [showReminderPicker, showCategoryPicker, showReminderPickerInPopup, showCategoryPickerInPopup, isEditingDescription]);
+	}, [showReminderPicker, showCategoryPicker, showReminderPickerInPopup, showCategoryPickerInPopup, isEditingDescription, showViewDropdown]);
 
 	const handleAdd = () => {
 		// Remove hashtags from text before saving
@@ -434,6 +443,53 @@ function App() {
 		setDraggedCategoryIndex(null);
 	};
 
+	const toggleCategoryExpansion = (categoryId: string) => {
+		setExpandedCategories(prev => {
+			const newSet = new Set(prev);
+			if (newSet.has(categoryId)) {
+				newSet.delete(categoryId);
+			} else {
+				newSet.add(categoryId);
+			}
+			return newSet;
+		});
+	};
+
+	// Group tasks by category for the categories view
+	const groupTasksByCategory = () => {
+		const grouped: { categoryId: string | null; tasks: typeof sortedTasks }[] = [];
+
+		// Add groups for each category in order
+		categories.forEach(cat => {
+			const categoryTasks = sortedTasks.filter(task => task.categoryId === cat.id);
+			if (categoryTasks.length > 0) {
+				grouped.push({ categoryId: cat.id, tasks: categoryTasks });
+			}
+		});
+
+		// Add tasks without category at the end
+		const noCategoryTasks = sortedTasks.filter(task => !task.categoryId);
+		if (noCategoryTasks.length > 0) {
+			grouped.push({ categoryId: null, tasks: noCategoryTasks });
+		}
+
+		return grouped;
+	};
+
+	const handleDeleteAllArchived = () => {
+		setShowDeleteAllArchivedConfirm(true);
+	};
+
+	const confirmDeleteAllArchived = () => {
+		const archivedTasks = savedTexts.filter(task => task.archived);
+		archivedTasks.forEach(task => deleteText(task.id));
+		setShowDeleteAllArchivedConfirm(false);
+	};
+
+	const cancelDeleteAllArchived = () => {
+		setShowDeleteAllArchivedConfirm(false);
+	};
+
 	const formatReminderTime = (isoString: string) => {
 		const date = new Date(isoString);
 		const now = new Date();
@@ -485,47 +541,88 @@ function App() {
 		return 'normal';
 	};
 
-	// Filter out archived tasks
-	const activeTasks = savedTexts.filter(task => !task.archived);
+	// Filter tasks based on current view
+	const getFilteredTasks = () => {
+		switch (currentView) {
+			case 'archived':
+				return savedTexts.filter(task => task.archived);
+			case 'repeating':
+				return savedTexts.filter(task => !task.archived && task.repeat && task.repeat !== 'none');
+			default:
+				return savedTexts.filter(task => !task.archived);
+		}
+	};
 
-	// Sort tasks:
-	// 1. Incomplete with reminders (earliest first)
-	// 2. Incomplete without reminders
-	// 3. Completed (most recently completed first)
-	const sortedTasks = [...activeTasks].sort((a, b) => {
-		// Both completed - sort by completion time (most recent first)
-		if (a.completed && b.completed) {
-			const aTime = a.completedAt || 0;
-			const bTime = b.completedAt || 0;
-			return bTime - aTime; // Descending (newest first)
+	const filteredTasks = getFilteredTasks();
+
+	// Sort tasks based on current view
+	const sortedTasks = [...filteredTasks].sort((a, b) => {
+		// For categories view, don't sort by completion at top level
+		// (we handle it within each category group)
+		if (currentView !== 'categories') {
+			// First priority: incomplete tasks come before completed tasks
+			if (a.completed !== b.completed) {
+				return a.completed ? 1 : -1;
+			}
 		}
 
-		// One completed, one not - incomplete comes first
-		if (a.completed !== b.completed) {
-			return a.completed ? 1 : -1;
+		// Within each group (undone/completed), apply view-specific sorting
+		switch (currentView) {
+			case 'dates':
+				// Sort by reminder date (earliest first)
+				const aHasReminder = !!a.reminder;
+				const bHasReminder = !!b.reminder;
+
+				if (aHasReminder && bHasReminder) {
+					const aDate = new Date(a.reminder!).getTime();
+					const bDate = new Date(b.reminder!).getTime();
+					return aDate - bDate;
+				}
+
+				if (aHasReminder !== bHasReminder) {
+					return aHasReminder ? -1 : 1;
+				}
+
+				// If both completed, sort by completion time
+				if (a.completed && b.completed) {
+					return (b.completedAt || 0) - (a.completedAt || 0);
+				}
+
+				return 0;
+
+			case 'recent':
+				// Sort by creation time (newest first)
+				return (b.createdAt || 0) - (a.createdAt || 0);
+
+			case 'categories':
+				// Sort by category order
+				const aCatIndex = a.categoryId ? categories.findIndex(c => c.id === a.categoryId) : 999;
+				const bCatIndex = b.categoryId ? categories.findIndex(c => c.id === b.categoryId) : 999;
+
+				if (aCatIndex !== bCatIndex) {
+					return aCatIndex - bCatIndex;
+				}
+
+				// Within same category, incomplete before completed
+				if (a.completed !== b.completed) {
+					return a.completed ? 1 : -1;
+				}
+
+				// Then by creation time
+				return (b.createdAt || 0) - (a.createdAt || 0);
+
+			case 'repeating':
+			case 'archived':
+				// Sort by creation time (newest first)
+				return (b.createdAt || 0) - (a.createdAt || 0);
+
+			default:
+				return 0;
 		}
-
-		// Both incomplete - sort by reminder date
-		const aHasReminder = !!a.reminder;
-		const bHasReminder = !!b.reminder;
-
-		// Both have reminders - sort by due date (earliest first)
-		if (aHasReminder && bHasReminder) {
-			const aDate = new Date(a.reminder!).getTime();
-			const bDate = new Date(b.reminder!).getTime();
-			return aDate - bDate; // Ascending (earliest first)
-		}
-
-		// One has reminder, one doesn't - reminder comes first
-		if (aHasReminder !== bHasReminder) {
-			return aHasReminder ? -1 : 1;
-		}
-
-		// Neither has reminder - maintain original order
-		return 0;
 	});
 
-	// Calculate task statistics (excluding archived tasks)
+	// Calculate task statistics (excluding archived tasks, for header pie chart)
+	const activeTasks = savedTexts.filter(task => !task.archived);
 	const totalTasks = activeTasks.length;
 	const completedTasks = activeTasks.filter(task => task.completed).length;
 	const incompleteTasks = totalTasks - completedTasks;
@@ -928,8 +1025,8 @@ function App() {
 			</div>
 
 			{/* Display the list of saved texts */}
-			{sortedTasks.length > 0 && (
-				<div className="tasks-section">
+			<div className="tasks-section">
+				{totalTasks > 0 && (
 					<div className="task-progress">
 						<div className="task-counter">
 							<span className="incomplete-count">{incompleteTasks}</span>
@@ -943,9 +1040,178 @@ function App() {
 							></div>
 						</div>
 					</div>
-					<h2>My Focus List:</h2>
+				)}
+					<div className="tasks-header">
+						<h2>My Focus List:</h2>
+						<div className="tasks-header-actions">
+							{currentView === 'archived' && sortedTasks.length > 0 && (
+								<button
+									className="delete-all-archived-btn"
+									onClick={handleDeleteAllArchived}
+								>
+									Delete All Archived
+								</button>
+							)}
+							<div className="view-selector">
+							<button
+								className="view-selector-button"
+								onClick={() => setShowViewDropdown(!showViewDropdown)}
+							>
+								<span className="view-label">
+									{currentView === 'dates' && 'Sort by Due Date'}
+									{currentView === 'recent' && 'Recently Added First'}
+									{currentView === 'categories' && 'Group by categories'}
+									{currentView === 'repeating' && 'Show Repeating Tasks'}
+									{currentView === 'archived' && 'Archived tasks'}
+								</span>
+								<span className="view-chevron">{showViewDropdown ? '▲' : '▼'}</span>
+							</button>
+
+							{showViewDropdown && (
+								<div className="view-dropdown">
+									<button
+										className={`view-option ${currentView === 'dates' ? 'active' : ''}`}
+										onClick={() => {
+											setCurrentView('dates');
+											setShowViewDropdown(false);
+										}}
+									>
+										Sort by Due Date
+									</button>
+									<button
+										className={`view-option ${currentView === 'recent' ? 'active' : ''}`}
+										onClick={() => {
+											setCurrentView('recent');
+											setShowViewDropdown(false);
+										}}
+									>
+										Recently Added First
+									</button>
+									<button
+										className={`view-option ${currentView === 'categories' ? 'active' : ''}`}
+										onClick={() => {
+											setCurrentView('categories');
+											setShowViewDropdown(false);
+										}}
+									>
+										Group by categories
+									</button>
+									<button
+										className={`view-option ${currentView === 'repeating' ? 'active' : ''}`}
+										onClick={() => {
+											setCurrentView('repeating');
+											setShowViewDropdown(false);
+										}}
+									>
+										Show Repeating Tasks
+									</button>
+									<button
+										className={`view-option ${currentView === 'archived' ? 'active' : ''}`}
+										onClick={() => {
+											setCurrentView('archived');
+											setShowViewDropdown(false);
+										}}
+									>
+										Archived tasks
+									</button>
+								</div>
+							)}
+						</div>
+						</div>
+					</div>
 					<div className="saved-texts">
-						{sortedTasks.map((task) => (
+						{sortedTasks.length === 0 && (
+							<div className="empty-state">
+								{currentView === 'archived' && <p>No archived tasks yet.</p>}
+								{currentView === 'repeating' && <p>No repeating tasks yet.</p>}
+								{currentView !== 'archived' && currentView !== 'repeating' && savedTexts.length === 0 && <p>No tasks yet. Add your first task above!</p>}
+								{currentView !== 'archived' && currentView !== 'repeating' && savedTexts.length > 0 && <p>All tasks are archived. Switch to "Archived tasks" view to see them.</p>}
+							</div>
+						)}
+
+						{/* Categories View - Grouped by Category with Expanders */}
+						{currentView === 'categories' && sortedTasks.length > 0 && groupTasksByCategory().map((group) => {
+							const category = group.categoryId ? getCategoryById(group.categoryId) : null;
+							const isExpanded = expandedCategories.has(group.categoryId || 'no-category');
+
+							return (
+								<div key={group.categoryId || 'no-category'} className="category-group">
+									<div
+										className="category-group-header"
+										onClick={() => toggleCategoryExpansion(group.categoryId || 'no-category')}
+									>
+										<div className="category-group-info">
+											{category ? (
+												<span className="category-group-chip" style={{ backgroundColor: category.color }}>
+													#{category.name.toLowerCase()}
+												</span>
+											) : (
+												<span className="category-group-chip no-category">
+													No category
+												</span>
+											)}
+											<span className="category-group-count">{group.tasks.length}</span>
+										</div>
+										<span className="category-group-chevron">{isExpanded ? '▼' : '▶'}</span>
+									</div>
+
+									{isExpanded && (
+										<div className="category-group-tasks">
+											{group.tasks.map((task) => (
+												<div
+													key={task.id}
+													className={`task-item ${task.completed ? 'completed' : ''}`}
+													onClick={() => setViewingTask(task.id)}
+												>
+													<div className="checkbox-wrapper" onClick={(e) => e.stopPropagation()}>
+														<input
+															type="checkbox"
+															className="task-checkbox"
+															checked={task.completed}
+															onChange={() => toggleComplete(task.id)}
+														/>
+														<span className="checkbox-tooltip">
+															{task.completed ? 'Mark as undone' : 'Mark as done'}
+														</span>
+													</div>
+													<div className="task-content">
+														<div className="task-text-wrapper">
+															<p className="task-text">{task.text}</p>
+															{task.description && (
+																<div className="task-description-preview">
+																	<span className="description-text">{getDescriptionPreview(task.description)}</span>
+																</div>
+															)}
+															{task.reminder && (
+																<div className="task-meta">
+																	<span className={`task-reminder ${getReminderUrgency(task.reminder)}`}>
+																		⏰ {formatReminderTime(task.reminder)}{formatRepeat(task.repeat)}
+																	</span>
+																</div>
+															)}
+														</div>
+													</div>
+													<div className="task-actions" onClick={(e) => e.stopPropagation()}>
+														<button
+															className="action-btn archive-btn"
+															onClick={() => task.archived ? unarchiveTask(task.id) : archiveTask(task.id)}
+														>
+															📥
+															<span className="action-tooltip">
+																{task.archived ? 'Unarchive task' : 'Archive task'}
+															</span>
+														</button>
+													</div>
+												</div>
+											))}
+										</div>
+									)}
+								</div>
+							);
+						})}
+
+						{/* Other Views - Flat List */}
+						{currentView !== 'categories' && sortedTasks.map((task) => (
 							<div
 								key={task.id}
 								className={`task-item ${task.completed ? 'completed' : ''}`}
@@ -1002,17 +1268,18 @@ function App() {
 								<div className="task-actions" onClick={(e) => e.stopPropagation()}>
 									<button
 										className="action-btn archive-btn"
-										onClick={() => archiveTask(task.id)}
+										onClick={() => task.archived ? unarchiveTask(task.id) : archiveTask(task.id)}
 									>
 										📥
-										<span className="action-tooltip">Archive task</span>
+										<span className="action-tooltip">
+											{task.archived ? 'Unarchive task' : 'Archive task'}
+										</span>
 									</button>
 								</div>
 							</div>
 						))}
 					</div>
-				</div>
-			)}
+			</div>
 
 			{/* Delete Task Confirmation Dialog */}
 			{deleteConfirmId && (
@@ -1043,6 +1310,24 @@ function App() {
 								Yes
 							</button>
 							<button className="modal-btn no-btn" onClick={cancelDeleteCategory}>
+								No
+							</button>
+						</div>
+					</div>
+				</div>
+			)}
+
+			{/* Delete All Archived Tasks Confirmation Dialog */}
+			{showDeleteAllArchivedConfirm && (
+				<div className="modal-overlay delete-confirm-overlay" onClick={cancelDeleteAllArchived}>
+					<div className="modal-content" onClick={(e) => e.stopPropagation()}>
+						<h3>Delete All Archived Tasks?</h3>
+						<p>This will permanently delete all archived tasks. This action cannot be undone.</p>
+						<div className="modal-actions">
+							<button className="modal-btn yes-btn" onClick={confirmDeleteAllArchived} autoFocus>
+								Yes
+							</button>
+							<button className="modal-btn no-btn" onClick={cancelDeleteAllArchived}>
 								No
 							</button>
 						</div>
@@ -1464,11 +1749,11 @@ function App() {
 								<button
 									className="task-details-action-btn archive-action"
 									onClick={() => {
-										archiveTask(task.id);
+										task.archived ? unarchiveTask(task.id) : archiveTask(task.id);
 										setViewingTask(null);
 									}}
 								>
-									Archive Task
+									{task.archived ? 'Unarchive Task' : 'Archive Task'}
 								</button>
 								<button
 									className="task-details-action-btn delete-action"
