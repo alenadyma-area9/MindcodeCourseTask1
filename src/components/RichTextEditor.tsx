@@ -1,13 +1,75 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 
 interface RichTextEditorProps {
 	value: string;
 	onChange: (value: string) => void;
 	placeholder?: string;
+	autoFocus?: boolean;
 }
 
-export default function RichTextEditor({ value, onChange, placeholder }: RichTextEditorProps) {
+export default function RichTextEditor({ value, onChange, placeholder, autoFocus }: RichTextEditorProps) {
 	const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+	// Auto-focus on mount if autoFocus is true
+	useEffect(() => {
+		if (autoFocus && textareaRef.current) {
+			textareaRef.current.focus();
+		}
+	}, [autoFocus]);
+
+	// Handle paste to preserve formatting
+	const handlePaste = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+		// Try to get HTML content from clipboard
+		const html = e.clipboardData.getData('text/html');
+
+		if (html) {
+			e.preventDefault();
+
+			// Convert HTML to markdown-style formatting
+			let markdownText = html;
+
+			// Convert links: <a href="url">text</a> -> [text](url)
+			markdownText = markdownText.replace(/<a[^>]*href=["']([^"']+)["'][^>]*>([^<]+)<\/a>/gi, '[$2]($1)');
+
+			// Convert bold: <strong>, <b> -> **text**
+			markdownText = markdownText.replace(/<(strong|b)>([^<]+)<\/(strong|b)>/gi, '**$2**');
+
+			// Convert italic: <em>, <i> -> _text_
+			markdownText = markdownText.replace(/<(em|i)>([^<]+)<\/(em|i)>/gi, '_$2_');
+
+			// Convert list items: <li> -> - or •
+			markdownText = markdownText.replace(/<li[^>]*>([^<]+)<\/li>/gi, '• $1\n');
+
+			// Remove remaining HTML tags
+			markdownText = markdownText.replace(/<[^>]+>/g, '');
+
+			// Decode HTML entities
+			const textarea = document.createElement('textarea');
+			textarea.innerHTML = markdownText;
+			markdownText = textarea.value;
+
+			// Clean up excessive whitespace and newlines
+			markdownText = markdownText.replace(/^\s+/, ''); // Remove leading whitespace
+			markdownText = markdownText.replace(/\s+$/, ''); // Remove trailing whitespace
+			markdownText = markdownText.replace(/\n{3,}/g, '\n\n'); // Max 2 consecutive newlines
+
+			// Insert at cursor position
+			const start = textareaRef.current?.selectionStart || 0;
+			const end = textareaRef.current?.selectionEnd || 0;
+			const newText = value.substring(0, start) + markdownText + value.substring(end);
+
+			onChange(newText);
+
+			// Restore cursor position
+			setTimeout(() => {
+				if (textareaRef.current) {
+					const newPos = start + markdownText.length;
+					textareaRef.current.setSelectionRange(newPos, newPos);
+					textareaRef.current.focus();
+				}
+			}, 0);
+		}
+	};
 
 	const insertFormatting = (before: string, after: string) => {
 		const textarea = textareaRef.current;
@@ -111,6 +173,7 @@ export default function RichTextEditor({ value, onChange, placeholder }: RichTex
 				className="editor-textarea"
 				value={value}
 				onChange={(e) => onChange(e.target.value)}
+				onPaste={handlePaste}
 				placeholder={placeholder}
 			/>
 		</div>
@@ -122,27 +185,65 @@ export function formatTextToHtml(text: string): string {
 	if (!text) return '';
 
 	let html = text;
+	const linkPlaceholders: { [key: string]: string } = {};
+	let placeholderIndex = 0;
 
+	// Step 1: Handle malformed markdown links: [text]url or [text]url) -> [text](url)
+	html = html.replace(/\[([^\]]+)\](https?:\/\/[^\s\)]+)\)?/gi, '[$1]($2)');
+
+	// Step 2: Convert markdown links to HTML and store with placeholders
+	html = html.replace(/\[([^\]]+)\]\(([^\)]+)\)/g, (match, text, url) => {
+		const placeholder = `###LINKPLACEHOLDER${placeholderIndex}###`;
+		linkPlaceholders[placeholder] = `<a href="${url}" target="_blank" rel="noopener noreferrer">${text}</a>`;
+		placeholderIndex++;
+		return placeholder;
+	});
+
+	// Step 3: Auto-detect bare URLs and store with placeholders
+	const urlRegex = /(?:^|[^"'>=\]])((https?:\/\/|www\.)[^\s<\]]+[^\s<.,;:!?'")\]])/gi;
+	html = html.replace(urlRegex, (match, url, protocol) => {
+		const fullUrl = protocol === 'www.' ? 'https://' + url : url;
+		const prefix = match.charAt(0).match(/[a-z0-9]/i) ? '' : match.charAt(0);
+		const placeholder = `###LINKPLACEHOLDER${placeholderIndex}###`;
+		linkPlaceholders[placeholder] = `<a href="${fullUrl}" target="_blank" rel="noopener noreferrer">${url}</a>`;
+		placeholderIndex++;
+		return prefix + placeholder;
+	});
+
+	// Step 4: Now process bold/italic (URLs are protected by placeholders)
 	// Bold: **text** -> <strong>text</strong>
 	html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
 
 	// Italic: _text_ -> <em>text</em>
 	html = html.replace(/_(.+?)_/g, '<em>$1</em>');
 
-	// Links: [text](url) -> <a href="url">text</a>
-	html = html.replace(/\[(.+?)\]\((.+?)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
+	// Step 5: Process lists
+	// Bullet points with dash: - text -> <li>text</li>
+	html = html.replace(/^- (.+)$/gm, '<li class="bullet">$1</li>');
 
-	// Bullet points: • text -> <li>text</li>
-	html = html.replace(/^• (.+)$/gm, '<li>$1</li>');
+	// Bullet points with bullet symbol: • text -> <li>text</li>
+	html = html.replace(/^• (.+)$/gm, '<li class="bullet">$1</li>');
 
-	// Numbered lists: 1. text -> <li>text</li>
-	html = html.replace(/^\d+\. (.+)$/gm, '<li>$1</li>');
+	// Numbered lists: 1. text, 2. text -> <li>text</li>
+	html = html.replace(/^\d+\.\s+(.+)$/gm, '<li class="numbered">$1</li>');
 
-	// Wrap consecutive <li> in <ul>
-	html = html.replace(/(<li>.*?<\/li>\n?)+/g, '<ul>$&</ul>');
+	// Wrap consecutive bullet <li> in <ul>
+	html = html.replace(/(<li class="bullet">.*?<\/li>(<br>)?)+/g, '<ul>$&</ul>');
 
-	// Line breaks
+	// Wrap consecutive numbered <li> in <ol>
+	html = html.replace(/(<li class="numbered">.*?<\/li>(<br>)?)+/g, '<ol>$&</ol>');
+
+	// Clean up the class attributes (not needed in final HTML)
+	html = html.replace(/<li class="(bullet|numbered)">/g, '<li>');
+
+	// Step 6: Line breaks (do this before restoring links)
 	html = html.replace(/\n/g, '<br>');
+
+	// Step 7: Restore link placeholders
+	for (const placeholder in linkPlaceholders) {
+		// Use split/join for reliable replacement
+		html = html.split(placeholder).join(linkPlaceholders[placeholder]);
+	}
 
 	return html;
 }

@@ -259,6 +259,24 @@ function App() {
 		return ` • ${repeatLabels[repeat]}`;
 	};
 
+	const getDescriptionPreview = (description: string): string => {
+		if (!description) return '';
+		// Remove markdown formatting and get plain text
+		let plainText = description
+			.replace(/\*\*(.+?)\*\*/g, '$1') // Remove bold
+			.replace(/_(.+?)_/g, '$1') // Remove italic
+			.replace(/\[(.+?)\]\((.+?)\)/g, '$1') // Keep link text only
+			.replace(/^[•\-\d]+[\.\s]+/gm, '') // Remove list markers
+			.replace(/\n/g, ' ') // Replace line breaks with spaces
+			.trim();
+
+		// Truncate to approximately 2 lines (about 100 characters)
+		if (plainText.length > 100) {
+			return plainText.substring(0, 100) + '...';
+		}
+		return plainText;
+	};
+
 	const handleSaveCategory = () => {
 		if (newCategoryName.trim()) {
 			if (editingCategory) {
@@ -538,14 +556,12 @@ function App() {
 
 				{/* Description/Notes Editor */}
 				{showDescription && (
-					<div className="description-editor">
-						<label className="description-label">Details</label>
-						<RichTextEditor
-							value={description}
-							onChange={setDescription}
-							placeholder="Add details, notes, or checklist..."
-						/>
-					</div>
+					<RichTextEditor
+						value={description}
+						onChange={setDescription}
+						placeholder="Add details, notes, or checklist..."
+						autoFocus={true}
+					/>
 				)}
 
 				{/* Reminder Picker Popup */}
@@ -788,9 +804,28 @@ function App() {
 								</div>
 								<div className="task-content">
 									<div className="task-text-wrapper">
+										{/* Line 1: Title */}
 										<p className="task-text">{task.text}</p>
-										{(task.categoryId || task.reminder || task.description) && (
+
+										{/* Line 2: Description preview (if exists) */}
+										{task.description && (
+											<div
+												className="task-description-preview"
+												onClick={() => setViewingDescription(task.description || null)}
+											>
+												<span className="description-icon">📝</span>
+												<span className="description-text">{getDescriptionPreview(task.description)}</span>
+											</div>
+										)}
+
+										{/* Line 3: Reminder and Category */}
+										{(task.categoryId || task.reminder) && (
 											<div className="task-meta">
+												{task.reminder && (
+													<span className={`task-reminder ${getReminderUrgency(task.reminder)}`}>
+														⏰ {formatReminderTime(task.reminder)}{formatRepeat(task.repeat)}
+													</span>
+												)}
 												{task.categoryId && (() => {
 													const category = getCategoryById(task.categoryId);
 													return category ? (
@@ -802,20 +837,6 @@ function App() {
 														</span>
 													) : null;
 												})()}
-												{task.reminder && (
-													<span className={`task-reminder ${getReminderUrgency(task.reminder)}`}>
-														⏰ {formatReminderTime(task.reminder)}{formatRepeat(task.repeat)}
-													</span>
-												)}
-												{task.description && (
-													<button
-														className="task-notes-icon"
-														onClick={() => setViewingDescription(task.description || null)}
-													>
-														📝
-														<span className="notes-tooltip">View details</span>
-													</button>
-												)}
 											</div>
 										)}
 									</div>
