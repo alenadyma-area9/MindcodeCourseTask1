@@ -348,6 +348,24 @@ function App() {
 		return plainText;
 	};
 
+	const getDescriptionTooltipPreview = (description: string): string => {
+		if (!description) return 'Add details';
+		// Remove markdown formatting and get plain text
+		let plainText = description
+			.replace(/\*\*(.+?)\*\*/g, '$1') // Remove bold
+			.replace(/_(.+?)_/g, '$1') // Remove italic
+			.replace(/\[(.+?)\]\((.+?)\)/g, '$1') // Keep link text only
+			.replace(/^[•\-\d]+[\.\s]+/gm, '') // Remove list markers
+			.replace(/\n/g, ' ') // Replace line breaks with spaces
+			.trim();
+
+		// Truncate to about 150 characters for tooltip
+		if (plainText.length > 150) {
+			return plainText.substring(0, 150) + '...';
+		}
+		return plainText;
+	};
+
 	const formatCreationTime = (timestamp?: number): string => {
 		if (!timestamp) return 'New task';
 		const date = new Date(timestamp);
@@ -697,7 +715,10 @@ function App() {
 				</div>
 				<div className="header-right">
 					{totalTasks > 0 && (
-						<div className="pie-chart-container" title={`${completedTasks} of ${totalTasks} tasks completed`}>
+						<div className="pie-chart-container">
+							<div className="pie-chart-tooltip">
+								<strong>{completedTasks}</strong> of <strong>{totalTasks}</strong> tasks completed
+							</div>
 							<svg width="80" height="80" viewBox="0 0 80 80" className="pie-chart">
 								{/* Background circle (grey) */}
 								<circle
@@ -769,7 +790,7 @@ function App() {
 						}}
 					>
 						📝
-						<span className="meta-tooltip">Add details</span>
+						<span className="meta-tooltip">{getDescriptionTooltipPreview(description)}</span>
 					</button>
 
 					{/* Show reminder icon OR selected reminder chip */}
@@ -857,7 +878,8 @@ function App() {
 
 					{/* Reminder Picker Popup */}
 					{showReminderPicker && (
-					<div className="reminder-popup">
+					<div className="modal-overlay" onClick={() => { setShowReminderPicker(false); setShowAdvancedReminder(false); }}>
+					<div className="reminder-popup" onClick={(e) => e.stopPropagation()}>
 						<div className="reminder-header">
 							<h3>Reminder</h3>
 							<button className="close-popup" onClick={() => { setShowReminderPicker(false); setShowAdvancedReminder(false); }}>✕</button>
@@ -1024,11 +1046,13 @@ function App() {
 							)}
 						</div>
 					</div>
+					</div>
 				)}
 
 				{/* Category Picker Popup */}
 				{showCategoryPicker && (
-					<div className="category-popup">
+					<div className="modal-overlay" onClick={() => setShowCategoryPicker(false)}>
+					<div className="category-popup" onClick={(e) => e.stopPropagation()}>
 						<div className="category-header">
 							<h3>Choose Category</h3>
 							<button className="close-popup" onClick={() => setShowCategoryPicker(false)}>✕</button>
@@ -1059,6 +1083,7 @@ function App() {
 						</button>
 						<p className="category-tip">💡 Tip: Type #{categories[0]?.name.toLowerCase()} in your task to auto-tag!</p>
 					</div>
+					</div>
 				)}
 				</div>
 
@@ -1075,11 +1100,10 @@ function App() {
 							<div className="tasks-header-actions">
 							{currentView !== 'archived' && completedTasks > 0 && (
 								<button
-									className="archive-all-icon-btn"
+									className="archive-all-completed-btn"
 									onClick={handleArchiveAllCompleted}
 								>
-									📦
-									<span className="archive-all-tooltip">Archive All Completed</span>
+									Archive All Completed
 								</button>
 							)}
 							{currentView === 'archived' && sortedTasks.length > 0 && (
@@ -1096,13 +1120,14 @@ function App() {
 								onClick={() => setShowViewDropdown(!showViewDropdown)}
 							>
 								<span className="view-label">
-									{currentView === 'dates' && 'Default'}
-									{currentView === 'recent' && 'Recently Added First'}
-									{currentView === 'categories' && 'Group by categories'}
-									{currentView === 'repeating' && 'Show Repeating Tasks'}
+									{currentView === 'dates' && 'Smart Sort'}
+									{currentView === 'recent' && 'Recently Added'}
+									{currentView === 'categories' && 'Group by Categories'}
+									{currentView === 'repeating' && 'Repeating Tasks'}
 									{currentView === 'archived' && 'Archived tasks'}
 								</span>
 								<span className="view-chevron">{showViewDropdown ? '▲' : '▼'}</span>
+								<span className="view-selector-tooltip">Choose how to organize your tasks</span>
 							</button>
 
 							{showViewDropdown && (
@@ -1114,7 +1139,7 @@ function App() {
 											setShowViewDropdown(false);
 										}}
 									>
-										Default
+										Smart Sort
 									</button>
 									<button
 										className={`view-option ${currentView === 'recent' ? 'active' : ''}`}
@@ -1123,7 +1148,7 @@ function App() {
 											setShowViewDropdown(false);
 										}}
 									>
-										Recently Added First
+										Recently Added
 									</button>
 									<button
 										className={`view-option ${currentView === 'categories' ? 'active' : ''}`}
@@ -1132,7 +1157,7 @@ function App() {
 											setShowViewDropdown(false);
 										}}
 									>
-										Group by categories
+										Group by Categories
 									</button>
 									<button
 										className={`view-option ${currentView === 'repeating' ? 'active' : ''}`}
@@ -1141,7 +1166,7 @@ function App() {
 											setShowViewDropdown(false);
 										}}
 									>
-										Show Repeating Tasks
+										Repeating Tasks
 									</button>
 									<button
 										className={`view-option ${currentView === 'archived' ? 'active' : ''}`}
@@ -1528,7 +1553,7 @@ function App() {
 				if (!task) return null;
 				const category = getCategoryById(editingTaskCategory);
 
-				const handleClosePopup = () => {
+				const handleSaveAndClose = () => {
 					// Save changes
 					updateText(
 						task.id,
@@ -1543,10 +1568,29 @@ function App() {
 					setShowCategoryPickerInPopup(false);
 				};
 
+				const handleCancelAndClose = () => {
+					// Don't save changes, just close
+					setViewingTask(null);
+					setShowReminderPickerInPopup(false);
+					setShowCategoryPickerInPopup(false);
+				};
+
 				return (
-					<div className="modal-overlay" onClick={handleClosePopup}>
-						<div className="task-details-modal" onClick={(e) => e.stopPropagation()}>
-							<button className="close-popup" onClick={handleClosePopup}>✕</button>
+					<div className="modal-overlay" onClick={handleCancelAndClose}>
+						<div
+							className="task-details-modal"
+							onClick={(e) => e.stopPropagation()}
+							onKeyDown={(e) => {
+								if (e.key === 'Enter' && e.ctrlKey) {
+									e.preventDefault();
+									handleSaveAndClose();
+								}
+							}}
+						>
+							{/* Close button row */}
+							<div className="modal-close-row">
+								<button className="close-popup" onClick={handleCancelAndClose}>✕</button>
+							</div>
 
 							{/* Task Title with Checkbox */}
 							<div className="task-details-header">
@@ -1569,10 +1613,14 @@ function App() {
 									maxLength={250}
 									rows={1}
 									onInput={(e) => {
-										// Auto-expand textarea
+										// Auto-expand textarea with max 3 lines
 										const target = e.target as HTMLTextAreaElement;
 										target.style.height = 'auto';
-										target.style.height = target.scrollHeight + 'px';
+										const lineHeight = 24; // approximate line height in pixels
+										const maxHeight = lineHeight * 3;
+										const newHeight = Math.min(target.scrollHeight, maxHeight);
+										target.style.height = newHeight + 'px';
+										target.style.overflowY = target.scrollHeight > maxHeight ? 'auto' : 'hidden';
 									}}
 								/>
 							</div>
@@ -1917,24 +1965,44 @@ function App() {
 
 							{/* Actions */}
 							<div className="task-details-actions">
-								<button
-									className="task-details-action-btn archive-action"
-									onClick={() => {
-										task.archived ? unarchiveTask(task.id) : archiveTask(task.id);
-										setViewingTask(null);
-									}}
-								>
-									{task.archived ? 'Unarchive Task' : 'Archive Task'}
-								</button>
-								<button
-									className="task-details-action-btn delete-action"
-									onClick={() => {
-										handleDelete(task.id);
-										setViewingTask(null);
-									}}
-								>
-									Delete Task
-								</button>
+								<div className="task-actions-left">
+									<button
+										className="task-icon-action-btn archive-icon-action"
+										onClick={() => {
+											task.archived ? unarchiveTask(task.id) : archiveTask(task.id);
+											setViewingTask(null);
+										}}
+									>
+										📥
+										<span className="action-tooltip">
+											{task.archived ? 'Unarchive Task' : 'Archive Task'}
+										</span>
+									</button>
+									<button
+										className="task-icon-action-btn delete-icon-action"
+										onClick={() => {
+											handleDelete(task.id);
+											setViewingTask(null);
+										}}
+									>
+										🗑️
+										<span className="action-tooltip">Delete Task</span>
+									</button>
+								</div>
+								<div className="task-actions-right">
+									<button
+										className="modal-btn cancel-btn"
+										onClick={handleCancelAndClose}
+									>
+										Cancel
+									</button>
+									<button
+										className="modal-btn done-btn"
+										onClick={handleSaveAndClose}
+									>
+										Done
+									</button>
+								</div>
 							</div>
 						</div>
 					</div>
@@ -1944,7 +2012,23 @@ function App() {
 			{/* Add Task Details Modal */}
 			{showDescriptionModal && (
 				<div className="modal-overlay" onClick={() => setShowDescriptionModal(false)}>
-					<div className="task-details-input-modal" onClick={(e) => e.stopPropagation()}>
+					<div
+						className="task-details-input-modal"
+						onClick={(e) => e.stopPropagation()}
+						onKeyDown={(e) => {
+							if (e.key === 'Enter' && e.ctrlKey) {
+								e.preventDefault();
+								// If editing an existing task, update editingTaskDescription
+								if (viewingTask) {
+									setEditingTaskDescription(tempDescription);
+								} else {
+									// If adding a new task, update description
+									setDescription(tempDescription);
+								}
+								setShowDescriptionModal(false);
+							}
+						}}
+					>
 						<div className="modal-header">
 							<h3>Task Details</h3>
 							<button className="close-popup" onClick={() => setShowDescriptionModal(false)}>✕</button>
@@ -1959,21 +2043,6 @@ function App() {
 						</div>
 						<div className="modal-actions-row">
 							<button
-								className="modal-btn apply-btn"
-								onClick={() => {
-									// If editing an existing task, update editingTaskDescription
-									if (viewingTask) {
-										setEditingTaskDescription(tempDescription);
-									} else {
-										// If adding a new task, update description
-										setDescription(tempDescription);
-									}
-									setShowDescriptionModal(false);
-								}}
-							>
-								Apply
-							</button>
-							<button
 								className="modal-btn cancel-btn"
 								onClick={() => {
 									// Restore original value
@@ -1986,6 +2055,21 @@ function App() {
 								}}
 							>
 								Cancel
+							</button>
+							<button
+								className="modal-btn apply-btn"
+								onClick={() => {
+									// If editing an existing task, update editingTaskDescription
+									if (viewingTask) {
+										setEditingTaskDescription(tempDescription);
+									} else {
+										// If adding a new task, update description
+										setDescription(tempDescription);
+									}
+									setShowDescriptionModal(false);
+								}}
+							>
+								Done
 							</button>
 						</div>
 					</div>
