@@ -1182,7 +1182,7 @@ function App() {
 													setShowMoreOptions(false);
 												}}
 											>
-												Mark All as Not Completed
+												Mark All as Incomplete
 											</button>
 										)}
 										{currentView !== 'archived' && completedTasks > 0 && (
@@ -1681,14 +1681,14 @@ function App() {
 				);
 			})()}
 
-			{/* Mark All as Not Completed Confirmation Dialog */}
+			{/* Mark All as Incomplete Confirmation Dialog */}
 			{showMarkAllNotCompletedConfirm && (() => {
 				const completedCount = filteredTasks.filter(task => task.completed).length;
 				return (
 					<div className="modal-overlay delete-confirm-overlay" onClick={cancelMarkAllNotCompleted}>
 						<div className="modal-content" onClick={(e) => e.stopPropagation()}>
-							<h3>Mark All Tasks as Not Completed?</h3>
-							<p>This will mark <strong>{completedCount}</strong> completed {completedCount === 1 ? 'task' : 'tasks'} in the current view as not completed.</p>
+							<h3>Mark All Tasks as Incomplete?</h3>
+							<p>This will mark <strong>{completedCount}</strong> completed {completedCount === 1 ? 'task' : 'tasks'} in the current view as incomplete.</p>
 							<div className="modal-actions">
 								<button className="modal-btn yes-btn" onClick={confirmMarkAllNotCompleted} autoFocus>
 									Yes
