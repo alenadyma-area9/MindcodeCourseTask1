@@ -70,9 +70,11 @@ function App() {
 	const [draggedCategoryIndex, setDraggedCategoryIndex] = useState<number | null>(null);
 	const [currentView, setCurrentView] = useState<'dates' | 'recent' | 'categories' | 'repeating' | 'archived'>('dates');
 	const [showViewDropdown, setShowViewDropdown] = useState(false);
+	const [showMoreOptions, setShowMoreOptions] = useState(false);
 	const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
 	const [showDeleteAllArchivedConfirm, setShowDeleteAllArchivedConfirm] = useState(false);
 	const [showArchiveAllCompletedConfirm, setShowArchiveAllCompletedConfirm] = useState(false);
+	const [showMarkAllCompletedConfirm, setShowMarkAllCompletedConfirm] = useState(false);
 
 	// Global state from our Zustand store
 	const { savedTexts, categories, addText, deleteText, toggleComplete, archiveTask, unarchiveTask, updateText, addCategory, updateCategory, deleteCategory, reorderCategories } = useTextStore();
@@ -160,13 +162,18 @@ function App() {
 			if (showViewDropdown && !target.closest('.view-selector')) {
 				setShowViewDropdown(false);
 			}
+
+			// Check if click is outside more options dropdown
+			if (showMoreOptions && !target.closest('.more-options-menu')) {
+				setShowMoreOptions(false);
+			}
 		};
 
 		document.addEventListener('mousedown', handleClickOutside);
 		return () => {
 			document.removeEventListener('mousedown', handleClickOutside);
 		};
-	}, [showReminderPicker, showCategoryPicker, showReminderPickerInPopup, showCategoryPickerInPopup, showViewDropdown]);
+	}, [showReminderPicker, showCategoryPicker, showReminderPickerInPopup, showCategoryPickerInPopup, showViewDropdown, showMoreOptions]);
 
 	const handleAdd = () => {
 		// Remove hashtags from text before saving
@@ -551,13 +558,28 @@ function App() {
 	};
 
 	const confirmArchiveAllCompleted = () => {
-		const completedTasks = savedTexts.filter(task => task.completed && !task.archived);
-		completedTasks.forEach(task => archiveTask(task.id));
+		const completedTasksInCurrentView = filteredTasks.filter(task => task.completed);
+		completedTasksInCurrentView.forEach(task => archiveTask(task.id));
 		setShowArchiveAllCompletedConfirm(false);
 	};
 
 	const cancelArchiveAllCompleted = () => {
 		setShowArchiveAllCompletedConfirm(false);
+	};
+
+	const handleMarkAllCompleted = () => {
+		setShowMarkAllCompletedConfirm(true);
+	};
+
+	const confirmMarkAllCompleted = () => {
+		const incompleteTasks = filteredTasks.filter(task => !task.completed);
+		incompleteTasks.forEach(task => toggleComplete(task.id));
+		setShowMarkAllCompletedConfirm(false);
+		setShowMoreOptions(false);
+	};
+
+	const cancelMarkAllCompleted = () => {
+		setShowMarkAllCompletedConfirm(false);
 	};
 
 	const formatReminderTime = (isoString: string) => {
@@ -1098,22 +1120,53 @@ function App() {
 						<div className="tasks-header-top">
 							<h2>My Focus List:</h2>
 							<div className="tasks-header-actions">
-							{currentView !== 'archived' && completedTasks > 0 && (
+							<div className="more-options-menu">
 								<button
-									className="archive-all-completed-btn"
-									onClick={handleArchiveAllCompleted}
+									className="more-options-btn"
+									onClick={() => setShowMoreOptions(!showMoreOptions)}
 								>
-									Archive All Completed
+									⋯
+									<span className="more-options-tooltip">More options</span>
 								</button>
-							)}
-							{currentView === 'archived' && sortedTasks.length > 0 && (
-								<button
-									className="delete-all-archived-btn"
-									onClick={handleDeleteAllArchived}
-								>
-									Delete All Archived
-								</button>
-							)}
+
+								{showMoreOptions && (
+									<div className="more-options-dropdown">
+										{currentView !== 'archived' && incompleteTasks > 0 && (
+											<button
+												className="more-option"
+												onClick={() => {
+													handleMarkAllCompleted();
+													setShowMoreOptions(false);
+												}}
+											>
+												Mark All as Completed
+											</button>
+										)}
+										{currentView !== 'archived' && completedTasks > 0 && (
+											<button
+												className="more-option"
+												onClick={() => {
+													handleArchiveAllCompleted();
+													setShowMoreOptions(false);
+												}}
+											>
+												Archive All Completed
+											</button>
+										)}
+										{currentView === 'archived' && sortedTasks.length > 0 && (
+											<button
+												className="more-option"
+												onClick={() => {
+													handleDeleteAllArchived();
+													setShowMoreOptions(false);
+												}}
+											>
+												Delete All Archived
+											</button>
+										)}
+									</div>
+								)}
+							</div>
 							<div className="view-selector">
 							<button
 								className="view-selector-button"
@@ -1295,7 +1348,7 @@ function App() {
 										return (
 											<div className="task-group-section">
 												<div className="task-group-separator">
-													<span className="separator-text">TASKS DUE SOON</span>
+													<span className="separator-text">🔵 TASKS DUE SOON</span>
 													<span className="separator-count">
 														(<span className="count-remaining soon">{remaining}</span> / {total})
 													</span>
@@ -1310,7 +1363,7 @@ function App() {
 										return (
 											<div className="task-group-section">
 												<div className="task-group-separator">
-													<span className="separator-text">TASKS WITH NO DUE DATE</span>
+													<span className="separator-text"><span className="grey-circle">⚫</span> TASKS WITH NO DUE DATE</span>
 													<span className="separator-count">
 														(<span className="count-remaining no-date">{remaining}</span> / {total})
 													</span>
@@ -1540,6 +1593,24 @@ function App() {
 								Yes
 							</button>
 							<button className="modal-btn no-btn" onClick={cancelArchiveAllCompleted}>
+								No
+							</button>
+						</div>
+					</div>
+				</div>
+			)}
+
+			{/* Mark All as Completed Confirmation Dialog */}
+			{showMarkAllCompletedConfirm && (
+				<div className="modal-overlay delete-confirm-overlay" onClick={cancelMarkAllCompleted}>
+					<div className="modal-content" onClick={(e) => e.stopPropagation()}>
+						<h3>Mark All Tasks as Completed?</h3>
+						<p>This will mark all incomplete tasks in the current view as completed.</p>
+						<div className="modal-actions">
+							<button className="modal-btn yes-btn" onClick={confirmMarkAllCompleted} autoFocus>
+								Yes
+							</button>
+							<button className="modal-btn no-btn" onClick={cancelMarkAllCompleted}>
 								No
 							</button>
 						</div>
