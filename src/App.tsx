@@ -1592,76 +1592,88 @@ function App() {
 			)}
 
 			{/* Delete All Archived Tasks Confirmation Dialog */}
-			{showDeleteAllArchivedConfirm && (
-				<div className="modal-overlay delete-confirm-overlay" onClick={cancelDeleteAllArchived}>
-					<div className="modal-content" onClick={(e) => e.stopPropagation()}>
-						<h3>Delete All Archived Tasks?</h3>
-						<p>This will permanently delete all archived tasks. This action cannot be undone.</p>
-						<div className="modal-actions">
-							<button className="modal-btn yes-btn" onClick={confirmDeleteAllArchived} autoFocus>
-								Yes
-							</button>
-							<button className="modal-btn no-btn" onClick={cancelDeleteAllArchived}>
-								No
-							</button>
+			{showDeleteAllArchivedConfirm && (() => {
+				const archivedCount = savedTexts.filter(task => task.archived).length;
+				return (
+					<div className="modal-overlay delete-confirm-overlay" onClick={cancelDeleteAllArchived}>
+						<div className="modal-content" onClick={(e) => e.stopPropagation()}>
+							<h3>Delete All Archived Tasks?</h3>
+							<p>This will permanently delete <strong>{archivedCount}</strong> archived {archivedCount === 1 ? 'task' : 'tasks'}. This action cannot be undone.</p>
+							<div className="modal-actions">
+								<button className="modal-btn yes-btn" onClick={confirmDeleteAllArchived} autoFocus>
+									Yes
+								</button>
+								<button className="modal-btn no-btn" onClick={cancelDeleteAllArchived}>
+									No
+								</button>
+							</div>
 						</div>
 					</div>
-				</div>
-			)}
+				);
+			})()}
 
 			{/* Archive All Completed Tasks Confirmation Dialog */}
-			{showArchiveAllCompletedConfirm && (
-				<div className="modal-overlay delete-confirm-overlay" onClick={cancelArchiveAllCompleted}>
-					<div className="modal-content" onClick={(e) => e.stopPropagation()}>
-						<h3>Archive All Completed Tasks?</h3>
-						<p>This will move all completed tasks to the archived view.</p>
-						<div className="modal-actions">
-							<button className="modal-btn yes-btn" onClick={confirmArchiveAllCompleted} autoFocus>
-								Yes
-							</button>
-							<button className="modal-btn no-btn" onClick={cancelArchiveAllCompleted}>
-								No
-							</button>
+			{showArchiveAllCompletedConfirm && (() => {
+				const completedCount = filteredTasks.filter(task => task.completed).length;
+				return (
+					<div className="modal-overlay delete-confirm-overlay" onClick={cancelArchiveAllCompleted}>
+						<div className="modal-content" onClick={(e) => e.stopPropagation()}>
+							<h3>Archive All Completed Tasks?</h3>
+							<p>This will move <strong>{completedCount}</strong> completed {completedCount === 1 ? 'task' : 'tasks'} to the archived view.</p>
+							<div className="modal-actions">
+								<button className="modal-btn yes-btn" onClick={confirmArchiveAllCompleted} autoFocus>
+									Yes
+								</button>
+								<button className="modal-btn no-btn" onClick={cancelArchiveAllCompleted}>
+									No
+								</button>
+							</div>
 						</div>
 					</div>
-				</div>
-			)}
+				);
+			})()}
 
 			{/* Mark All as Completed Confirmation Dialog */}
-			{showMarkAllCompletedConfirm && (
-				<div className="modal-overlay delete-confirm-overlay" onClick={cancelMarkAllCompleted}>
-					<div className="modal-content" onClick={(e) => e.stopPropagation()}>
-						<h3>Mark All Tasks as Completed?</h3>
-						<p>This will mark all incomplete tasks in the current view as completed.</p>
-						<div className="modal-actions">
-							<button className="modal-btn yes-btn" onClick={confirmMarkAllCompleted} autoFocus>
-								Yes
-							</button>
-							<button className="modal-btn no-btn" onClick={cancelMarkAllCompleted}>
-								No
-							</button>
+			{showMarkAllCompletedConfirm && (() => {
+				const incompleteCount = filteredTasks.filter(task => !task.completed).length;
+				return (
+					<div className="modal-overlay delete-confirm-overlay" onClick={cancelMarkAllCompleted}>
+						<div className="modal-content" onClick={(e) => e.stopPropagation()}>
+							<h3>Mark All Tasks as Completed?</h3>
+							<p>This will mark <strong>{incompleteCount}</strong> incomplete {incompleteCount === 1 ? 'task' : 'tasks'} in the current view as completed.</p>
+							<div className="modal-actions">
+								<button className="modal-btn yes-btn" onClick={confirmMarkAllCompleted} autoFocus>
+									Yes
+								</button>
+								<button className="modal-btn no-btn" onClick={cancelMarkAllCompleted}>
+									No
+								</button>
+							</div>
 						</div>
 					</div>
-				</div>
-			)}
+				);
+			})()}
 
 			{/* Mark All as Not Completed Confirmation Dialog */}
-			{showMarkAllNotCompletedConfirm && (
-				<div className="modal-overlay delete-confirm-overlay" onClick={cancelMarkAllNotCompleted}>
-					<div className="modal-content" onClick={(e) => e.stopPropagation()}>
-						<h3>Mark All Tasks as Not Completed?</h3>
-						<p>This will mark all completed tasks in the current view as not completed.</p>
-						<div className="modal-actions">
-							<button className="modal-btn yes-btn" onClick={confirmMarkAllNotCompleted} autoFocus>
-								Yes
-							</button>
-							<button className="modal-btn no-btn" onClick={cancelMarkAllNotCompleted}>
-								No
-							</button>
+			{showMarkAllNotCompletedConfirm && (() => {
+				const completedCount = filteredTasks.filter(task => task.completed).length;
+				return (
+					<div className="modal-overlay delete-confirm-overlay" onClick={cancelMarkAllNotCompleted}>
+						<div className="modal-content" onClick={(e) => e.stopPropagation()}>
+							<h3>Mark All Tasks as Not Completed?</h3>
+							<p>This will mark <strong>{completedCount}</strong> completed {completedCount === 1 ? 'task' : 'tasks'} in the current view as not completed.</p>
+							<div className="modal-actions">
+								<button className="modal-btn yes-btn" onClick={confirmMarkAllNotCompleted} autoFocus>
+									Yes
+								</button>
+								<button className="modal-btn no-btn" onClick={cancelMarkAllNotCompleted}>
+									No
+								</button>
+							</div>
 						</div>
 					</div>
-				</div>
-			)}
+				);
+			})()}
 
 			{/* View Task Details Modal */}
 			{viewingTask && (() => {
