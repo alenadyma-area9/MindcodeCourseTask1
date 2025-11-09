@@ -75,6 +75,7 @@ function App() {
 	const [showDeleteAllArchivedConfirm, setShowDeleteAllArchivedConfirm] = useState(false);
 	const [showArchiveAllCompletedConfirm, setShowArchiveAllCompletedConfirm] = useState(false);
 	const [showMarkAllCompletedConfirm, setShowMarkAllCompletedConfirm] = useState(false);
+	const [showMarkAllNotCompletedConfirm, setShowMarkAllNotCompletedConfirm] = useState(false);
 
 	// Global state from our Zustand store
 	const { savedTexts, categories, addText, deleteText, toggleComplete, archiveTask, unarchiveTask, updateText, addCategory, updateCategory, deleteCategory, reorderCategories } = useTextStore();
@@ -580,6 +581,21 @@ function App() {
 
 	const cancelMarkAllCompleted = () => {
 		setShowMarkAllCompletedConfirm(false);
+	};
+
+	const handleMarkAllNotCompleted = () => {
+		setShowMarkAllNotCompletedConfirm(true);
+	};
+
+	const confirmMarkAllNotCompleted = () => {
+		const completedTasksInView = filteredTasks.filter(task => task.completed);
+		completedTasksInView.forEach(task => toggleComplete(task.id));
+		setShowMarkAllNotCompletedConfirm(false);
+		setShowMoreOptions(false);
+	};
+
+	const cancelMarkAllNotCompleted = () => {
+		setShowMarkAllNotCompletedConfirm(false);
 	};
 
 	const formatReminderTime = (isoString: string) => {
@@ -1146,6 +1162,17 @@ function App() {
 											<button
 												className="more-option"
 												onClick={() => {
+													handleMarkAllNotCompleted();
+													setShowMoreOptions(false);
+												}}
+											>
+												Mark All as Not Completed
+											</button>
+										)}
+										{currentView !== 'archived' && completedTasks > 0 && (
+											<button
+												className="more-option"
+												onClick={() => {
 													handleArchiveAllCompleted();
 													setShowMoreOptions(false);
 												}}
@@ -1611,6 +1638,24 @@ function App() {
 								Yes
 							</button>
 							<button className="modal-btn no-btn" onClick={cancelMarkAllCompleted}>
+								No
+							</button>
+						</div>
+					</div>
+				</div>
+			)}
+
+			{/* Mark All as Not Completed Confirmation Dialog */}
+			{showMarkAllNotCompletedConfirm && (
+				<div className="modal-overlay delete-confirm-overlay" onClick={cancelMarkAllNotCompleted}>
+					<div className="modal-content" onClick={(e) => e.stopPropagation()}>
+						<h3>Mark All Tasks as Not Completed?</h3>
+						<p>This will mark all completed tasks in the current view as not completed.</p>
+						<div className="modal-actions">
+							<button className="modal-btn yes-btn" onClick={confirmMarkAllNotCompleted} autoFocus>
+								Yes
+							</button>
+							<button className="modal-btn no-btn" onClick={cancelMarkAllNotCompleted}>
 								No
 							</button>
 						</div>
