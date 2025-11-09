@@ -76,6 +76,7 @@ function App() {
 	const [showArchiveAllCompletedConfirm, setShowArchiveAllCompletedConfirm] = useState(false);
 	const [showMarkAllCompletedConfirm, setShowMarkAllCompletedConfirm] = useState(false);
 	const [showMarkAllNotCompletedConfirm, setShowMarkAllNotCompletedConfirm] = useState(false);
+	const [showUnarchiveAllConfirm, setShowUnarchiveAllConfirm] = useState(false);
 
 	// Global state from our Zustand store
 	const { savedTexts, categories, addText, deleteText, toggleComplete, archiveTask, unarchiveTask, updateText, addCategory, updateCategory, deleteCategory, reorderCategories } = useTextStore();
@@ -596,6 +597,21 @@ function App() {
 
 	const cancelMarkAllNotCompleted = () => {
 		setShowMarkAllNotCompletedConfirm(false);
+	};
+
+	const handleUnarchiveAll = () => {
+		setShowUnarchiveAllConfirm(true);
+	};
+
+	const confirmUnarchiveAll = () => {
+		const archivedTasks = savedTexts.filter(task => task.archived);
+		archivedTasks.forEach(task => unarchiveTask(task.id));
+		setShowUnarchiveAllConfirm(false);
+		setShowMoreOptions(false);
+	};
+
+	const cancelUnarchiveAll = () => {
+		setShowUnarchiveAllConfirm(false);
 	};
 
 	const formatReminderTime = (isoString: string) => {
@@ -1184,6 +1200,17 @@ function App() {
 											<button
 												className="more-option"
 												onClick={() => {
+													handleUnarchiveAll();
+													setShowMoreOptions(false);
+												}}
+											>
+												Unarchive All Tasks
+											</button>
+										)}
+										{currentView === 'archived' && sortedTasks.length > 0 && (
+											<button
+												className="more-option"
+												onClick={() => {
 													handleDeleteAllArchived();
 													setShowMoreOptions(false);
 												}}
@@ -1667,6 +1694,27 @@ function App() {
 									Yes
 								</button>
 								<button className="modal-btn no-btn" onClick={cancelMarkAllNotCompleted}>
+									No
+								</button>
+							</div>
+						</div>
+					</div>
+				);
+			})()}
+
+			{/* Unarchive All Tasks Confirmation Dialog */}
+			{showUnarchiveAllConfirm && (() => {
+				const archivedCount = savedTexts.filter(task => task.archived).length;
+				return (
+					<div className="modal-overlay delete-confirm-overlay" onClick={cancelUnarchiveAll}>
+						<div className="modal-content" onClick={(e) => e.stopPropagation()}>
+							<h3>Unarchive All Tasks?</h3>
+							<p>This will restore <strong>{archivedCount}</strong> archived {archivedCount === 1 ? 'task' : 'tasks'} to your active task list.</p>
+							<div className="modal-actions">
+								<button className="modal-btn yes-btn" onClick={confirmUnarchiveAll} autoFocus>
+									Yes
+								</button>
+								<button className="modal-btn no-btn" onClick={cancelUnarchiveAll}>
 									No
 								</button>
 							</div>
