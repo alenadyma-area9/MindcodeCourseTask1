@@ -75,6 +75,7 @@ function App() {
 	const [expandedDateGroups, setExpandedDateGroups] = useState<Set<string>>(new Set(['overdue', 'today', 'soon', 'noDueDate']));
 	const [showDeleteAllArchivedConfirm, setShowDeleteAllArchivedConfirm] = useState(false);
 	const [showArchiveAllCompletedConfirm, setShowArchiveAllCompletedConfirm] = useState(false);
+	const [showArchiveAllConfirm, setShowArchiveAllConfirm] = useState(false);
 	const [showMarkAllCompletedConfirm, setShowMarkAllCompletedConfirm] = useState(false);
 	const [showMarkAllNotCompletedConfirm, setShowMarkAllNotCompletedConfirm] = useState(false);
 	const [showUnarchiveAllConfirm, setShowUnarchiveAllConfirm] = useState(false);
@@ -582,6 +583,20 @@ function App() {
 		setShowArchiveAllCompletedConfirm(false);
 	};
 
+	const handleArchiveAll = () => {
+		setShowArchiveAllConfirm(true);
+	};
+
+	const confirmArchiveAll = () => {
+		filteredTasks.forEach(task => archiveTask(task.id));
+		setShowArchiveAllConfirm(false);
+		setShowMoreOptions(false);
+	};
+
+	const cancelArchiveAll = () => {
+		setShowArchiveAllConfirm(false);
+	};
+
 	const handleMarkAllCompleted = () => {
 		setShowMarkAllCompletedConfirm(true);
 	};
@@ -792,6 +807,13 @@ function App() {
 							)}
 						</div>
 						<svg width="80" height="80" viewBox="0 0 80 80" className="pie-chart">
+							{/* Define gradient */}
+							<defs>
+								<linearGradient id="pieGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+									<stop offset="0%" stopColor="#003D4D" />
+									<stop offset="100%" stopColor="#009A61" />
+								</linearGradient>
+							</defs>
 							{/* Background circle (grey) */}
 							<circle
 								cx="40"
@@ -801,14 +823,14 @@ function App() {
 								stroke="#E0E0E0"
 								strokeWidth="10"
 							/>
-							{/* Completed portion (green) */}
+							{/* Completed portion (gradient) */}
 							{completionPercentage > 0 && (
 								<circle
 									cx="40"
 									cy="40"
 									r="35"
 									fill="none"
-									stroke="#006642"
+									stroke="url(#pieGradient)"
 									strokeWidth="10"
 									strokeDasharray={`${(completionPercentage / 100) * 220} 220`}
 									strokeDashoffset="0"
@@ -845,7 +867,7 @@ function App() {
 						placeholder="What's your next task?"
 						maxLength={250}
 					/>
-					<button onClick={handleAdd}>{editingId ? 'UPDATE' : 'ADD TASK'}</button>
+					<button onClick={handleAdd}>{editingId ? 'Update' : 'ADD TASK'}</button>
 				</div>
 
 				{/* Category and Reminder Icons + Info Below Input */}
@@ -1111,7 +1133,7 @@ function App() {
 										onClick={setCustomReminder}
 										disabled={!customDate}
 									>
-										SET
+										Set
 									</button>
 								</div>
 							)}
@@ -1211,6 +1233,16 @@ function App() {
 													}}
 												>
 													Archive All Completed
+												</button>
+												<button
+													className="more-option"
+													disabled={filteredTasks.length === 0}
+													onClick={() => {
+														handleArchiveAll();
+														setShowMoreOptions(false);
+													}}
+												>
+													Archive All
 												</button>
 											</>
 										)}
@@ -1712,6 +1744,27 @@ function App() {
 				);
 			})()}
 
+			{/* Archive All Tasks Confirmation Dialog */}
+			{showArchiveAllConfirm && (() => {
+				const totalCount = filteredTasks.length;
+				return (
+					<div className="modal-overlay delete-confirm-overlay" onClick={cancelArchiveAll}>
+						<div className="modal-content" onClick={(e) => e.stopPropagation()}>
+							<h3>Archive All Tasks?</h3>
+							<p>This will move <strong>{totalCount}</strong> {totalCount === 1 ? 'task' : 'tasks'} in the current view to the archived view, regardless of completion status.</p>
+							<div className="modal-actions">
+								<button className="modal-btn yes-btn" onClick={confirmArchiveAll} autoFocus>
+									Yes
+								</button>
+								<button className="modal-btn no-btn" onClick={cancelArchiveAll}>
+									No
+								</button>
+							</div>
+						</div>
+					</div>
+				);
+			})()}
+
 			{/* Mark All as Completed Confirmation Dialog */}
 			{showMarkAllCompletedConfirm && (() => {
 				const incompleteCount = filteredTasks.filter(task => !task.completed).length;
@@ -2145,7 +2198,7 @@ function App() {
 														}}
 														disabled={!customDate}
 													>
-														SET
+														Set
 													</button>
 												</div>
 											)}

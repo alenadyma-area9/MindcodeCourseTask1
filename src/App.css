@@ -587,25 +587,27 @@
 
 /* Category Groups (for Categories View) */
 .category-group {
-	margin-bottom: 1rem;
-	border: 1px solid #EEEEEE;
-	border-radius: 8px;
-	overflow: hidden;
+	margin-bottom: 1.5rem;
 }
 
 .category-group-header {
 	display: flex;
 	align-items: center;
 	justify-content: space-between;
-	padding: 0.875rem 1rem;
-	background: #F9F9F9;
+	padding: 0.75rem 0.5rem;
+	margin-left: -0.5rem;
+	margin-right: -0.5rem;
+	margin-bottom: 0.75rem;
+	border-bottom: 2px solid #DDDDDD;
+	background: transparent;
 	cursor: pointer;
-	transition: all 0.2s;
+	transition: background 0.2s;
 	user-select: none;
+	border-radius: 6px;
 }
 
 .category-group-header:hover {
-	background: #F0F0F0;
+	background: #F5F5F5;
 }
 
 .category-group-info {
@@ -626,7 +628,7 @@
 }
 
 .category-group-chip.no-category {
-	background: #E0E0E0;
+	background: #F0F0F0;
 	color: #666666;
 }
 
@@ -647,18 +649,7 @@
 }
 
 .category-group-tasks {
-	background: #FFFFFF;
-}
-
-.category-group-tasks .task-item {
-	border-radius: 0;
-	border: none;
-	border-bottom: 1px solid #F0F0F0;
-	margin-bottom: 0;
-}
-
-.category-group-tasks .task-item:last-child {
-	border-bottom: none;
+	/* Tasks inside categories use their default styling */
 }
 
 .task-item {
@@ -718,21 +709,23 @@
 	appearance: none;
 	-webkit-appearance: none;
 	-moz-appearance: none;
-	border: 2px solid #006642;
+	border: 2px solid transparent;
 	border-radius: 4px;
 	position: relative;
-	background: #FFFFFF;
+	background:
+		linear-gradient(#FFFFFF, #FFFFFF) padding-box,
+		linear-gradient(135deg, #003D4D 0%, #009A61 100%) border-box;
 	transition: all 0.2s;
 }
 
 .task-checkbox:hover {
-	border-color: #005030;
 	box-shadow: 0 0 0 3px rgba(0, 102, 66, 0.1);
 }
 
 .task-checkbox:checked {
-	background: #006642;
-	border-color: #006642;
+	background:
+		linear-gradient(135deg, #003D4D 0%, #009A61 100%) padding-box,
+		linear-gradient(135deg, #003D4D 0%, #009A61 100%) border-box;
 }
 
 .task-checkbox:checked::after {
@@ -1002,18 +995,19 @@
 	padding: 0.5rem 1.5rem;
 	border: none;
 	border-radius: 6px;
+	font-size: 1rem;
 	font-weight: 600;
 	cursor: pointer;
 	transition: all 0.2s;
 }
 
 .yes-btn {
-	background: #006642;
-	color: white;
+	background: linear-gradient(135deg, #003D4D 0%, #009A61 100%);
+	color: #FFFFFF;
 }
 
 .yes-btn:hover {
-	background: #004D31;
+	opacity: 0.9;
 }
 
 .no-btn {
@@ -1669,20 +1663,19 @@
 .set-button {
 	width: 100%;
 	padding: 0.875rem;
-	background: #006642;
-	color: white;
+	background: linear-gradient(135deg, #003D4D 0%, #009A61 100%);
+	color: #FFFFFF;
 	border: none;
 	border-radius: 8px;
 	cursor: pointer;
-	font-size: 0.875rem;
+	font-size: 1rem;
 	font-weight: 700;
-	text-transform: uppercase;
 	letter-spacing: 0.5px;
 	transition: all 0.2s;
 }
 
 .set-button:hover:not(:disabled) {
-	background: #004D31;
+	opacity: 0.9;
 	transform: translateY(-1px);
 	box-shadow: 0 4px 12px rgba(0, 102, 66, 0.3);
 }
@@ -1745,15 +1738,20 @@
 	overflow-y: visible;
 	overflow-x: hidden;
 	max-height: none;
+	padding-top: 1.25rem !important;
 }
 
 .category-header {
+	position: sticky;
+	top: 0;
 	display: flex;
 	justify-content: space-between;
 	align-items: center;
 	margin-bottom: 0;
-	padding-bottom: 0.75rem !important;
+	padding: 1.5rem 1.5rem 0.75rem 1.5rem !important;
 	border-bottom: 1px solid #EEEEEE;
+	background: #FFFFFF;
+	z-index: 1;
 }
 
 .category-header h3 {
@@ -1814,7 +1812,7 @@
 	border: 1px solid #CCCCCC;
 	border-radius: 8px;
 	cursor: pointer;
-	font-size: 0.8rem;
+	font-size: 0.875rem;
 	font-weight: 500;
 	color: #333333;
 	transition: all 0.2s;
@@ -1840,7 +1838,6 @@
 /* Category Manager Modal */
 .category-manager-modal {
 	background: #FFFFFF;
-	padding: 1.5rem;
 	border-radius: 12px;
 	box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
 	max-width: 500px;
@@ -1871,12 +1868,16 @@
 }
 
 .modal-header {
+	position: sticky;
+	top: 0;
 	display: flex;
 	justify-content: space-between;
 	align-items: center;
-	margin-bottom: 1.5rem;
-	padding-bottom: 1rem;
+	margin-bottom: 0;
+	padding: 1.5rem 1.5rem 1rem 1.5rem;
 	border-bottom: 1px solid #EEEEEE;
+	background: #FFFFFF;
+	z-index: 1;
 }
 
 .modal-header h3 {
@@ -1888,7 +1889,7 @@
 }
 
 .category-form {
-	margin-bottom: 2rem;
+	margin: 1.5rem 1.5rem 2rem 1.5rem;
 	padding: 1rem;
 	background: #f8f8f8;
 	border-radius: 8px;
@@ -1983,25 +1984,23 @@
 .save-category-btn {
 	flex: 1;
 	padding: 0.75rem;
-	background: #006642;
-	color: white;
+	background: linear-gradient(135deg, #003D4D 0%, #009A61 100%);
+	color: #FFFFFF;
 	border: none;
 	border-radius: 8px;
 	cursor: pointer;
-	font-size: 0.875rem;
+	font-size: 1rem;
 	font-weight: 600;
-	text-transform: uppercase;
 	transition: all 0.2s;
 }
 
 .save-category-btn:hover:not(:disabled) {
-	background: #004D31;
+	opacity: 0.9;
 	transform: translateY(-1px);
 	box-shadow: 0 2px 8px rgba(0, 102, 66, 0.3);
 }
 
 .save-category-btn:disabled {
-	background: #006642;
 	opacity: 0.5;
 	cursor: not-allowed;
 	transform: none;
@@ -2025,7 +2024,8 @@
 }
 
 .categories-list {
-	margin-top: 1.5rem;
+	margin: 0 1.5rem 1.5rem 1.5rem;
+	padding-top: 1.5rem;
 }
 
 .categories-list h4 {
@@ -2222,17 +2222,19 @@
 .input-container button {
 	padding: 0.75rem 1.5rem;
 	border: none;
-	background: #006642;
-	color: white;
+	background: linear-gradient(135deg, #003D4D 0%, #009A61 100%);
+	color: #FFFFFF;
+	font-size: 1rem;
 	font-weight: 600;
 	cursor: pointer;
-	transition: background 0.2s;
+	transition: opacity 0.2s, transform 0.2s;
 	position: relative;
 	border-radius: 0 8px 8px 0;
 }
 
 .input-container button:hover {
-	background: #004D31;
+	opacity: 0.9;
+	transform: translateY(-1px);
 }
 
 .input-container button::after {
@@ -2313,21 +2315,45 @@
 /* Task Details Modal */
 .task-details-modal {
 	background: #FFFFFF;
-	padding: 1rem 1.5rem 1.5rem 1.5rem;
 	border-radius: 12px;
 	box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
 	max-width: 600px;
 	width: 90%;
-	max-height: 80vh;
-	overflow-y: auto;
+	max-height: 85vh;
 	position: relative;
+	overflow-y: auto;
+	overflow-x: hidden;
 	overscroll-behavior: contain;
+}
+
+/* Force scrollbar to be inside the rounded corners */
+.task-details-modal::-webkit-scrollbar {
+	width: 8px;
+}
+
+.task-details-modal::-webkit-scrollbar-track {
+	background: transparent;
+	margin: 12px 0;
+}
+
+.task-details-modal::-webkit-scrollbar-thumb {
+	background: #CCCCCC;
+	border-radius: 4px;
+}
+
+.task-details-modal::-webkit-scrollbar-thumb:hover {
+	background: #999999;
 }
 
 .modal-close-row {
 	display: flex;
 	justify-content: flex-end;
-	margin-bottom: 0.5rem;
+	padding: 0.75rem 1rem 0.5rem 1rem;
+	position: sticky;
+	top: 0;
+	background: #FFFFFF;
+	z-index: 100;
+	border-radius: 12px 12px 0 0;
 }
 
 .task-details-modal .close-popup {
@@ -2340,7 +2366,8 @@
 	display: flex;
 	align-items: flex-start;
 	gap: 0.75rem;
-	margin-bottom: 1rem;
+	margin-bottom: 0.75rem;
+	padding: 0 1rem;
 }
 
 .task-details-header .checkbox-wrapper {
@@ -2367,10 +2394,10 @@
 	white-space: normal;
 	overflow-wrap: break-word;
 	min-height: auto;
-	max-height: 72px;
+	max-height: 50px;
 	height: auto;
 	resize: none;
-	overflow-y: hidden;
+	overflow-y: auto;
 }
 
 .task-details-title-input:hover {
@@ -2393,11 +2420,18 @@
 }
 
 .task-details-description {
-	margin-bottom: 1rem;
+	margin-bottom: 0.75rem;
+	padding: 0 1rem;
 }
 
 .task-details-description .rich-text-editor {
 	margin-top: 0;
+}
+
+.task-details-description .editor-textarea {
+	min-height: 40px;
+	max-height: 150px;
+	overflow-y: auto;
 }
 
 .task-details-description .editor-textarea::placeholder {
@@ -2505,28 +2539,22 @@
 }
 
 .modal-actions-row .modal-btn {
-	padding: 0.6rem 1.5rem;
-	font-size: 0.9rem;
-}
-
-.modal-actions-row .modal-btn {
-	padding: 0.75rem 2rem;
+	padding: 0.5rem 1.5rem;
 	border: none;
-	border-radius: 8px;
-	font-family: 'Poppins', sans-serif;
-	font-size: 0.95rem;
+	border-radius: 6px;
+	font-size: 1rem;
 	font-weight: 600;
 	cursor: pointer;
 	transition: all 0.2s;
 }
 
 .modal-actions-row .apply-btn {
-	background: #006642;
-	color: white;
+	background: linear-gradient(135deg, #003D4D 0%, #009A61 100%);
+	color: #FFFFFF;
 }
 
 .modal-actions-row .apply-btn:hover {
-	background: #004D31;
+	opacity: 0.9;
 	transform: translateY(-1px);
 	box-shadow: 0 4px 8px rgba(0, 102, 66, 0.2);
 }
@@ -2551,7 +2579,7 @@
 	align-items: center;
 	gap: 0.5rem;
 	flex-wrap: wrap;
-	margin-bottom: 1.5rem;
+	padding: 0 1rem 0.75rem 1rem;
 	position: static;
 }
 
@@ -2567,8 +2595,13 @@
 	display: flex;
 	justify-content: space-between;
 	align-items: center;
-	padding-top: 1rem;
+	padding: 0.75rem 1rem 1rem 1rem;
 	border-top: 1px solid #EEEEEE;
+	position: sticky;
+	bottom: 0;
+	background: #FFFFFF;
+	z-index: 100;
+	border-radius: 0 0 12px 12px;
 }
 
 .task-actions-left {
@@ -2632,13 +2665,13 @@
 }
 
 .done-btn {
-	background: #006642;
-	color: white;
+	background: linear-gradient(135deg, #003D4D 0%, #009A61 100%);
+	color: #FFFFFF;
 	border: none;
 }
 
 .done-btn:hover {
-	background: #004D31;
+	opacity: 0.9;
 	transform: translateY(-1px);
 	box-shadow: 0 4px 8px rgba(0, 102, 66, 0.2);
 }
