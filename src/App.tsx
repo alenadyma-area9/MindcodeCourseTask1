@@ -71,7 +71,8 @@ function App() {
 	const [currentView, setCurrentView] = useState<'dates' | 'recent' | 'categories' | 'repeating' | 'archived'>('dates');
 	const [showViewDropdown, setShowViewDropdown] = useState(false);
 	const [showMoreOptions, setShowMoreOptions] = useState(false);
-	const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
+	const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(new Set());
+	const [expandedDateGroups, setExpandedDateGroups] = useState<Set<string>>(new Set(['overdue', 'today', 'soon', 'noDueDate']));
 	const [showDeleteAllArchivedConfirm, setShowDeleteAllArchivedConfirm] = useState(false);
 	const [showArchiveAllCompletedConfirm, setShowArchiveAllCompletedConfirm] = useState(false);
 	const [showMarkAllCompletedConfirm, setShowMarkAllCompletedConfirm] = useState(false);
@@ -461,12 +462,24 @@ function App() {
 	};
 
 	const toggleCategoryExpansion = (categoryId: string) => {
-		setExpandedCategories(prev => {
+		setCollapsedCategories(prev => {
 			const newSet = new Set(prev);
 			if (newSet.has(categoryId)) {
 				newSet.delete(categoryId);
 			} else {
 				newSet.add(categoryId);
+			}
+			return newSet;
+		});
+	};
+
+	const toggleDateGroupExpansion = (groupId: string) => {
+		setExpandedDateGroups(prev => {
+			const newSet = new Set(prev);
+			if (newSet.has(groupId)) {
+				newSet.delete(groupId);
+			} else {
+				newSet.add(groupId);
 			}
 			return newSet;
 		});
@@ -768,52 +781,56 @@ function App() {
 					<p className="header-date">{dateString}</p>
 				</div>
 				<div className="header-right">
-					{totalTasks > 0 && (
-						<div className="pie-chart-container">
-							<div className="pie-chart-tooltip">
-								<strong>{completedTasks}</strong> of <strong>{totalTasks}</strong> tasks completed
-							</div>
-							<svg width="80" height="80" viewBox="0 0 80 80" className="pie-chart">
-								{/* Background circle (grey) */}
+					<div className="pie-chart-container">
+						<div className="pie-chart-tooltip">
+							{totalTasks > 0 ? (
+								<>
+									<strong>{completedTasks}</strong> of <strong>{totalTasks}</strong> tasks completed
+								</>
+							) : (
+								<>No active tasks yet. Add your first task below!</>
+							)}
+						</div>
+						<svg width="80" height="80" viewBox="0 0 80 80" className="pie-chart">
+							{/* Background circle (grey) */}
+							<circle
+								cx="40"
+								cy="40"
+								r="35"
+								fill="none"
+								stroke="#E0E0E0"
+								strokeWidth="10"
+							/>
+							{/* Completed portion (green) */}
+							{completionPercentage > 0 && (
 								<circle
 									cx="40"
 									cy="40"
 									r="35"
 									fill="none"
-									stroke="#E0E0E0"
+									stroke="#006642"
 									strokeWidth="10"
+									strokeDasharray={`${(completionPercentage / 100) * 220} 220`}
+									strokeDashoffset="0"
+									transform="rotate(-90 40 40)"
+									strokeLinecap="round"
 								/>
-								{/* Completed portion (green) */}
-								{completionPercentage > 0 && (
-									<circle
-										cx="40"
-										cy="40"
-										r="35"
-										fill="none"
-										stroke="#006642"
-										strokeWidth="10"
-										strokeDasharray={`${(completionPercentage / 100) * 220} 220`}
-										strokeDashoffset="0"
-										transform="rotate(-90 40 40)"
-										strokeLinecap="round"
-									/>
-								)}
-								{/* Center text */}
-								<text
-									x="40"
-									y="40"
-									textAnchor="middle"
-									dominantBaseline="central"
-									className="pie-chart-text"
-									fontSize="18"
-									fontWeight="600"
-									fill="#333333"
-								>
-									{Math.round(completionPercentage)}%
-								</text>
-							</svg>
-						</div>
-					)}
+							)}
+							{/* Center text */}
+							<text
+								x="40"
+								y="40"
+								textAnchor="middle"
+								dominantBaseline="central"
+								className="pie-chart-text"
+								fontSize="18"
+								fontWeight="600"
+								fill="#333333"
+							>
+								{Math.round(completionPercentage)}%
+							</text>
+						</svg>
+					</div>
 				</div>
 			</div>
 
@@ -1163,60 +1180,63 @@ function App() {
 
 								{showMoreOptions && (
 									<div className="more-options-dropdown">
-										{currentView !== 'archived' && incompleteTasks > 0 && (
-											<button
-												className="more-option"
-												onClick={() => {
-													handleMarkAllCompleted();
-													setShowMoreOptions(false);
-												}}
-											>
-												Mark All as Completed
-											</button>
+										{currentView !== 'archived' && (
+											<>
+												<button
+													className="more-option"
+													disabled={incompleteTasks === 0}
+													onClick={() => {
+														handleMarkAllCompleted();
+														setShowMoreOptions(false);
+													}}
+												>
+													Mark All as Completed
+												</button>
+												<button
+													className="more-option"
+													disabled={completedTasks === 0}
+													onClick={() => {
+														handleMarkAllNotCompleted();
+														setShowMoreOptions(false);
+													}}
+												>
+													Mark All as Incomplete
+												</button>
+												<button
+													className="more-option"
+													disabled={completedTasks === 0}
+													onClick={() => {
+														handleArchiveAllCompleted();
+														setShowMoreOptions(false);
+													}}
+												>
+													Archive All Completed
+												</button>
+											</>
 										)}
-										{currentView !== 'archived' && completedTasks > 0 && (
-											<button
-												className="more-option"
-												onClick={() => {
-													handleMarkAllNotCompleted();
-													setShowMoreOptions(false);
-												}}
-											>
-												Mark All as Incomplete
-											</button>
-										)}
-										{currentView !== 'archived' && completedTasks > 0 && (
-											<button
-												className="more-option"
-												onClick={() => {
-													handleArchiveAllCompleted();
-													setShowMoreOptions(false);
-												}}
-											>
-												Archive All Completed
-											</button>
-										)}
-										{currentView === 'archived' && sortedTasks.length > 0 && (
-											<button
-												className="more-option"
-												onClick={() => {
-													handleUnarchiveAll();
-													setShowMoreOptions(false);
-												}}
-											>
-												Unarchive All Tasks
-											</button>
-										)}
-										{currentView === 'archived' && sortedTasks.length > 0 && (
-											<button
-												className="more-option"
-												onClick={() => {
-													handleDeleteAllArchived();
-													setShowMoreOptions(false);
-												}}
-											>
-												Delete All Archived
-											</button>
+										{currentView === 'archived' && (
+											<>
+												<button
+													className="more-option"
+													disabled={sortedTasks.length === 0}
+													onClick={() => {
+														handleUnarchiveAll();
+														setShowMoreOptions(false);
+													}}
+												>
+													Unarchive All Tasks
+												</button>
+												<button
+													className="more-option"
+													disabled={sortedTasks.length === 0}
+													onClick={() => {
+														handleDeleteAllArchived();
+														setShowMoreOptions(false);
+													}}
+												>
+													Delete All Archived
+												</button>
+											</>
 										)}
 									</div>
 								)}
@@ -1227,9 +1247,9 @@ function App() {
 								onClick={() => setShowViewDropdown(!showViewDropdown)}
 							>
 								<span className="view-label">
-									{currentView === 'dates' && 'Smart Sort'}
+									{currentView === 'dates' && 'By Due Date'}
 									{currentView === 'recent' && 'Recently Added'}
-									{currentView === 'categories' && 'Group by Categories'}
+									{currentView === 'categories' && 'By Categories'}
 									{currentView === 'repeating' && 'Repeating Tasks'}
 									{currentView === 'archived' && 'Archived tasks'}
 								</span>
@@ -1246,7 +1266,7 @@ function App() {
 											setShowViewDropdown(false);
 										}}
 									>
-										Smart Sort
+										By Due Date
 									</button>
 									<button
 										className={`view-option ${currentView === 'recent' ? 'active' : ''}`}
@@ -1264,7 +1284,7 @@ function App() {
 											setShowViewDropdown(false);
 										}}
 									>
-										Group by Categories
+										By Categories
 									</button>
 									<button
 										className={`view-option ${currentView === 'repeating' ? 'active' : ''}`}
@@ -1369,60 +1389,88 @@ function App() {
 									{groups.overdue.length > 0 && (() => {
 										const remaining = groups.overdue.filter(t => !t.completed).length;
 										const total = groups.overdue.length;
+										const isExpanded = expandedDateGroups.has('overdue');
 										return (
 											<div className="task-group-section">
-												<div className="task-group-separator">
-													<span className="separator-text">🔴 OVERDUE TASKS</span>
-													<span className="separator-count">
-														(<span className="count-remaining overdue">{remaining}</span> / {total})
-													</span>
+												<div
+													className="task-group-separator clickable-separator"
+													onClick={() => toggleDateGroupExpansion('overdue')}
+												>
+													<div className="separator-left">
+														<span className="separator-text">🔴 OVERDUE TASKS</span>
+														<span className="separator-count">
+															(<span className="count-remaining overdue">{remaining}</span> / {total})
+														</span>
+													</div>
+													<span className="separator-chevron">{isExpanded ? '▼' : '▶'}</span>
 												</div>
-												{groups.overdue.map(renderTaskItem)}
+												{isExpanded && groups.overdue.map(renderTaskItem)}
 											</div>
 										);
 									})()}
 									{groups.today.length > 0 && (() => {
 										const remaining = groups.today.filter(t => !t.completed).length;
 										const total = groups.today.length;
+										const isExpanded = expandedDateGroups.has('today');
 										return (
 											<div className="task-group-section">
-												<div className="task-group-separator">
-													<span className="separator-text">🟠 TASKS DUE TODAY</span>
-													<span className="separator-count">
-														(<span className="count-remaining today">{remaining}</span> / {total})
-													</span>
+												<div
+													className="task-group-separator clickable-separator"
+													onClick={() => toggleDateGroupExpansion('today')}
+												>
+													<div className="separator-left">
+														<span className="separator-text">🟠 TASKS DUE TODAY</span>
+														<span className="separator-count">
+															(<span className="count-remaining today">{remaining}</span> / {total})
+														</span>
+													</div>
+													<span className="separator-chevron">{isExpanded ? '▼' : '▶'}</span>
 												</div>
-												{groups.today.map(renderTaskItem)}
+												{isExpanded && groups.today.map(renderTaskItem)}
 											</div>
 										);
 									})()}
 									{groups.soon.length > 0 && (() => {
 										const remaining = groups.soon.filter(t => !t.completed).length;
 										const total = groups.soon.length;
+										const isExpanded = expandedDateGroups.has('soon');
 										return (
 											<div className="task-group-section">
-												<div className="task-group-separator">
-													<span className="separator-text">🔵 TASKS DUE SOON</span>
-													<span className="separator-count">
-														(<span className="count-remaining soon">{remaining}</span> / {total})
-													</span>
+												<div
+													className="task-group-separator clickable-separator"
+													onClick={() => toggleDateGroupExpansion('soon')}
+												>
+													<div className="separator-left">
+														<span className="separator-text">🔵 TASKS DUE SOON</span>
+														<span className="separator-count">
+															(<span className="count-remaining soon">{remaining}</span> / {total})
+														</span>
+													</div>
+													<span className="separator-chevron">{isExpanded ? '▼' : '▶'}</span>
 												</div>
-												{groups.soon.map(renderTaskItem)}
+												{isExpanded && groups.soon.map(renderTaskItem)}
 											</div>
 										);
 									})()}
 									{groups.noDueDate.length > 0 && (() => {
 										const remaining = groups.noDueDate.filter(t => !t.completed).length;
 										const total = groups.noDueDate.length;
+										const isExpanded = expandedDateGroups.has('noDueDate');
 										return (
 											<div className="task-group-section">
-												<div className="task-group-separator">
-													<span className="separator-text"><span className="grey-circle">⚫</span> TASKS WITH NO DUE DATE</span>
-													<span className="separator-count">
-														(<span className="count-remaining no-date">{remaining}</span> / {total})
-													</span>
+												<div
+													className="task-group-separator clickable-separator"
+													onClick={() => toggleDateGroupExpansion('noDueDate')}
+												>
+													<div className="separator-left">
+														<span className="separator-text"><span className="grey-circle">⚫</span> TASKS WITH NO DUE DATE</span>
+														<span className="separator-count">
+															(<span className="count-remaining no-date">{remaining}</span> / {total})
+														</span>
+													</div>
+													<span className="separator-chevron">{isExpanded ? '▼' : '▶'}</span>
 												</div>
-												{groups.noDueDate.map(renderTaskItem)}
+												{isExpanded && groups.noDueDate.map(renderTaskItem)}
 											</div>
 										);
 									})()}
@@ -1433,7 +1481,9 @@ function App() {
 						{/* Categories View - Grouped by Category with Expanders */}
 						{currentView === 'categories' && sortedTasks.length > 0 && groupTasksByCategory().map((group) => {
 							const category = group.categoryId ? getCategoryById(group.categoryId) : null;
-							const isExpanded = expandedCategories.has(group.categoryId || 'no-category');
+							const isExpanded = !collapsedCategories.has(group.categoryId || 'no-category');
+							const remaining = group.tasks.filter(t => !t.completed).length;
+							const total = group.tasks.length;
 
 							return (
 								<div key={group.categoryId || 'no-category'} className="category-group">
@@ -1451,7 +1501,9 @@ function App() {
 													No category
 												</span>
 											)}
-											<span className="category-group-count">{group.tasks.length}</span>
+											<span className="category-group-count">
+												(<span className="count-remaining">{remaining}</span> / {total})
+											</span>
 										</div>
 										<span className="category-group-chevron">{isExpanded ? '▼' : '▶'}</span>
 									</div>
