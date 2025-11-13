@@ -28,29 +28,35 @@ const ALL_COLORS = [
 	'#FDE6E6', '#FDEAF2', '#E7F2FD', '#E6F7EA', '#F0E8FB', '#FFF1E6', '#FFF9E6', '#F6F6F6',
 ];
 
-// Get 8 available colors, prioritizing unused ones
+// Get 8 available colors with fair rotation
 function getAvailableColors(usedColors: string[]): string[] {
-	const usedSet = new Set(usedColors.map(c => c.toUpperCase()));
+	// Create set of used colors (uppercase for comparison)
+	const usedSet = new Set(usedColors.filter(c => c).map(c => c.toUpperCase()));
 
-	// Find unused colors
-	const unusedColors = ALL_COLORS.filter(color => !usedSet.has(color.toUpperCase()));
+	const result: string[] = [];
+	let index = 0;
+	let attempts = 0;
+	const maxAttempts = ALL_COLORS.length * 2; // Prevent infinite loop
 
-	// If we have 8 or more unused, return first 8
-	if (unusedColors.length >= 8) {
-		return unusedColors.slice(0, 8);
+	// Find 8 unused colors (or reuse if all are used)
+	while (result.length < 8 && attempts < maxAttempts) {
+		const color = ALL_COLORS[index % ALL_COLORS.length];
+
+		// If color not used, add it
+		if (!usedSet.has(color.toUpperCase())) {
+			result.push(color);
+		}
+
+		index++;
+		attempts++;
 	}
 
-	// If less than 8 unused, add used colors to fill up to 8
-	const result = [...unusedColors];
-	const usedColors_list = ALL_COLORS.filter(color => usedSet.has(color.toUpperCase()));
-
-	while (result.length < 8 && usedColors_list.length > 0) {
-		result.push(usedColors_list[result.length - unusedColors.length]);
-	}
-
-	// If still less than 8 (very rare case), repeat from ALL_COLORS
-	while (result.length < 8) {
-		result.push(ALL_COLORS[result.length % ALL_COLORS.length]);
+	// If we couldn't find 8 unused colors (all are used), just return next 8 in sequence
+	if (result.length < 8) {
+		const startIndex = usedColors.length % ALL_COLORS.length;
+		for (let i = 0; i < 8; i++) {
+			result.push(ALL_COLORS[(startIndex + i) % ALL_COLORS.length]);
+		}
 	}
 
 	return result;
@@ -102,15 +108,18 @@ function App() {
 	const [showMoreOptions, setShowMoreOptions] = useState(false);
 	const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(new Set());
 	const [expandedDateGroups, setExpandedDateGroups] = useState<Set<string>>(new Set(['overdue', 'today', 'soon', 'noDueDate']));
+	const [manuallyToggledDateGroups, setManuallyToggledDateGroups] = useState<Set<string>>(new Set());
+	const [manuallyToggledCategories, setManuallyToggledCategories] = useState<Set<string>>(new Set());
 	const [showDeleteAllArchivedConfirm, setShowDeleteAllArchivedConfirm] = useState(false);
 	const [showArchiveAllCompletedConfirm, setShowArchiveAllCompletedConfirm] = useState(false);
 	const [showArchiveAllConfirm, setShowArchiveAllConfirm] = useState(false);
 	const [showMarkAllCompletedConfirm, setShowMarkAllCompletedConfirm] = useState(false);
 	const [showMarkAllNotCompletedConfirm, setShowMarkAllNotCompletedConfirm] = useState(false);
 	const [showUnarchiveAllConfirm, setShowUnarchiveAllConfirm] = useState(false);
+	const [showResetCategoriesConfirm, setShowResetCategoriesConfirm] = useState(false);
 
 	// Global state from our Zustand store
-	const { savedTexts, categories, addText, deleteText, toggleComplete, archiveTask, unarchiveTask, updateText, addCategory, updateCategory, deleteCategory, reorderCategories } = useTextStore();
+	const { savedTexts, categories, addText, deleteText, toggleComplete, archiveTask, unarchiveTask, updateText, addCategory, updateCategory, deleteCategory, reorderCategories, resetCategories } = useTextStore();
 
 	// Parse hashtags from text to auto-detect categories
 	useEffect(() => {
@@ -142,14 +151,14 @@ function App() {
 
 					const isTimeNotSet = reminderDate.getHours() === 9 && reminderDate.getMinutes() === 0 && reminderDate.getSeconds() === 1;
 					if (isTimeNotSet) {
-						setCustomTime('');
+						setCustomTime('12:00');
 					} else {
 						const timeStr = reminderDate.toTimeString().slice(0, 5);
 						setCustomTime(timeStr);
 					}
 				} else {
 					setCustomDate(getTomorrowDate());
-					setCustomTime('');
+					setCustomTime('12:00');
 				}
 
 				// Auto-expand textarea after content is set
@@ -216,6 +225,124 @@ function App() {
 		};
 	}, [showReminderPicker, showCategoryPicker, showReminderPickerInPopup, showCategoryPickerInPopup, showViewDropdown, showMoreOptions, isEditingDescription]);
 
+	// Handle Escape key to close dialogs without saving
+	useEffect(() => {
+		const handleEscape = (event: KeyboardEvent) => {
+			if (event.key === 'Escape') {
+				// Close in priority order (innermost/topmost first)
+
+				// Delete confirmations (highest priority)
+				if (deleteConfirmId) {
+					setDeleteConfirmId(null);
+					return;
+				}
+				if (deleteCategoryId) {
+					setDeleteCategoryId(null);
+					return;
+				}
+				if (showDeleteAllArchivedConfirm) {
+					setShowDeleteAllArchivedConfirm(false);
+					return;
+				}
+				if (showArchiveAllCompletedConfirm) {
+					setShowArchiveAllCompletedConfirm(false);
+					return;
+				}
+				if (showArchiveAllConfirm) {
+					setShowArchiveAllConfirm(false);
+					return;
+				}
+				if (showMarkAllCompletedConfirm) {
+					setShowMarkAllCompletedConfirm(false);
+					return;
+				}
+				if (showMarkAllNotCompletedConfirm) {
+					setShowMarkAllNotCompletedConfirm(false);
+					return;
+				}
+				if (showUnarchiveAllConfirm) {
+					setShowUnarchiveAllConfirm(false);
+					return;
+				}
+				if (showResetCategoriesConfirm) {
+					setShowResetCategoriesConfirm(false);
+					return;
+				}
+
+				// Category manager modal
+				if (showCategoryManager) {
+					setShowCategoryManager(false);
+					resetCategoryForm();
+					return;
+				}
+
+				// Task details modal and its sub-popups
+				if (showCategoryPickerInPopup) {
+					setShowCategoryPickerInPopup(false);
+					return;
+				}
+				if (showReminderPickerInPopup) {
+					setShowReminderPickerInPopup(false);
+					setShowAdvancedReminder(false);
+					return;
+				}
+				if (viewingTask) {
+					setViewingTask(null);
+					setShowReminderPickerInPopup(false);
+					setShowCategoryPickerInPopup(false);
+					setIsEditingDescription(false);
+					return;
+				}
+
+				// Add description modal
+				if (showDescriptionModal) {
+					// Restore original value without saving
+					if (viewingTask) {
+						setTempDescription(editingTaskDescription);
+					} else {
+						setTempDescription(description);
+					}
+					setShowDescriptionModal(false);
+					return;
+				}
+
+				// Main screen popups
+				if (showCategoryPicker) {
+					setShowCategoryPicker(false);
+					return;
+				}
+				if (showReminderPicker) {
+					setShowReminderPicker(false);
+					setShowAdvancedReminder(false);
+					return;
+				}
+
+				// Dropdowns
+				if (showViewDropdown) {
+					setShowViewDropdown(false);
+					return;
+				}
+				if (showMoreOptions) {
+					setShowMoreOptions(false);
+					return;
+				}
+			}
+		};
+
+		document.addEventListener('keydown', handleEscape);
+		return () => {
+			document.removeEventListener('keydown', handleEscape);
+		};
+	}, [
+		deleteConfirmId, deleteCategoryId, showDeleteAllArchivedConfirm,
+		showArchiveAllCompletedConfirm, showArchiveAllConfirm,
+		showMarkAllCompletedConfirm, showMarkAllNotCompletedConfirm,
+		showUnarchiveAllConfirm, showResetCategoriesConfirm, showCategoryManager, showCategoryPickerInPopup,
+		showReminderPickerInPopup, viewingTask, showDescriptionModal,
+		showCategoryPicker, showReminderPicker, showViewDropdown, showMoreOptions,
+		editingTaskDescription, description
+	]);
+
 	// Set initial color when opening category manager
 	useEffect(() => {
 		if (showCategoryManager && !newCategoryColor && !editingCategory) {
@@ -223,6 +350,174 @@ function App() {
 			setNewCategoryColor(availableColors[0]);
 		}
 	}, [showCategoryManager, categories, newCategoryColor, editingCategory]);
+
+	// Smart auto-expand/collapse logic for date groups and categories
+	// Only applies to groups that haven't been manually toggled
+	useEffect(() => {
+		if (currentView === 'dates') {
+			const groups = groupTasksByDueDate();
+
+			setExpandedDateGroups(prev => {
+				const newExpanded = new Set(prev);
+
+				// Count non-empty groups
+				const groupCount = [
+					groups.overdue.length > 0,
+					groups.today.length > 0,
+					groups.soon.length > 0,
+					groups.noDueDate.length > 0
+				].filter(Boolean).length;
+
+				// If only "TASKS WITH NO DUE DATE" group exists, expand it
+				if (groupCount === 1 && groups.noDueDate.length > 0 && !manuallyToggledDateGroups.has('noDueDate')) {
+					newExpanded.add('noDueDate');
+				}
+
+				// Only apply smart defaults to groups that haven't been manually toggled
+				// Overdue: expand by default (if not manually toggled)
+				if (groups.overdue.length > 0 && !manuallyToggledDateGroups.has('overdue')) {
+					newExpanded.add('overdue');
+				}
+
+				// Today: expand by default (if not manually toggled)
+				if (groups.today.length > 0 && !manuallyToggledDateGroups.has('today')) {
+					newExpanded.add('today');
+				}
+
+				// Soon: expand if remaining < 5 (if not manually toggled)
+				if (!manuallyToggledDateGroups.has('soon')) {
+					const soonRemaining = groups.soon.filter(t => !t.completed).length;
+					if (soonRemaining < 5 && groups.soon.length > 0) {
+						newExpanded.add('soon');
+					} else {
+						newExpanded.delete('soon');
+					}
+				}
+
+				// No Due Date: expand if remaining < 5 (if not manually toggled) - unless it's the only group
+				if (!manuallyToggledDateGroups.has('noDueDate') && groupCount > 1) {
+					const noDueDateRemaining = groups.noDueDate.filter(t => !t.completed).length;
+					if (noDueDateRemaining < 5 && groups.noDueDate.length > 0) {
+						newExpanded.add('noDueDate');
+					} else {
+						newExpanded.delete('noDueDate');
+					}
+				}
+
+				return newExpanded;
+			});
+		}
+
+		if (currentView === 'categories') {
+			const grouped = groupTasksByCategory();
+
+			setCollapsedCategories(prev => {
+				const newCollapsed = new Set(prev);
+
+				// If only 1 category group (no category), expand it
+				if (grouped.length === 1 && !grouped[0].categoryId && !manuallyToggledCategories.has('no-category')) {
+					newCollapsed.delete('no-category');
+				}
+
+				grouped.forEach(group => {
+					const categoryKey = group.categoryId || 'no-category';
+					// Only apply smart logic to categories that haven't been manually toggled
+					if (!manuallyToggledCategories.has(categoryKey)) {
+						const remaining = group.tasks.filter(t => !t.completed).length;
+						// Collapse if remaining >= 5 (unless it's the only group)
+						if (remaining >= 5 && grouped.length > 1) {
+							newCollapsed.add(categoryKey);
+						} else if (grouped.length > 1) {
+							newCollapsed.delete(categoryKey);
+						}
+					}
+				});
+
+				return newCollapsed;
+			});
+		}
+	}, [currentView, savedTexts, manuallyToggledDateGroups, manuallyToggledCategories]); // Re-run when view or tasks change
+
+	// Handle toggle complete with repeating task logic
+	const handleToggleComplete = (taskId: string) => {
+		const task = savedTexts.find(t => t.id === taskId);
+
+		// If task has repeat pattern and is being completed (currently uncompleted)
+		if (task && !task.completed && task.repeat && task.repeat !== 'none' && task.reminder) {
+			const now = new Date();
+			const currentDueDate = new Date(task.reminder);
+			let nextDueDate: Date;
+
+			// Calculate next occurrence preserving original schedule
+			switch (task.repeat) {
+				case 'daily':
+					// Next occurrence: tomorrow at the same time
+					nextDueDate = new Date(now);
+					nextDueDate.setDate(now.getDate() + 1);
+					nextDueDate.setHours(currentDueDate.getHours());
+					nextDueDate.setMinutes(currentDueDate.getMinutes());
+					nextDueDate.setSeconds(currentDueDate.getSeconds());
+					break;
+
+				case 'weekdays':
+					// Next weekday at the same time
+					nextDueDate = new Date(now);
+					nextDueDate.setDate(now.getDate() + 1);
+					// Skip weekends
+					while (nextDueDate.getDay() === 0 || nextDueDate.getDay() === 6) {
+						nextDueDate.setDate(nextDueDate.getDate() + 1);
+					}
+					nextDueDate.setHours(currentDueDate.getHours());
+					nextDueDate.setMinutes(currentDueDate.getMinutes());
+					nextDueDate.setSeconds(currentDueDate.getSeconds());
+					break;
+
+				case 'weekly':
+					// Next occurrence of the SAME day of week
+					const originalDayOfWeek = currentDueDate.getDay();
+					const currentDayOfWeek = now.getDay();
+
+					nextDueDate = new Date(now);
+					let daysUntilNext = (originalDayOfWeek - currentDayOfWeek + 7) % 7;
+					if (daysUntilNext === 0) {
+						daysUntilNext = 7;
+					}
+					nextDueDate.setDate(now.getDate() + daysUntilNext);
+					nextDueDate.setHours(currentDueDate.getHours());
+					nextDueDate.setMinutes(currentDueDate.getMinutes());
+					nextDueDate.setSeconds(currentDueDate.getSeconds());
+					break;
+
+				case 'monthly':
+					// Next month, SAME day of month
+					const originalDayOfMonth = currentDueDate.getDate();
+					nextDueDate = new Date(now);
+
+					nextDueDate.setMonth(now.getMonth() + 1);
+					nextDueDate.setDate(originalDayOfMonth);
+
+					if (nextDueDate.getDate() !== originalDayOfMonth) {
+						nextDueDate.setDate(0);
+					}
+
+					nextDueDate.setHours(currentDueDate.getHours());
+					nextDueDate.setMinutes(currentDueDate.getMinutes());
+					nextDueDate.setSeconds(currentDueDate.getSeconds());
+					break;
+
+				default:
+					// No repeat pattern, just toggle normally
+					toggleComplete(taskId);
+					return;
+			}
+
+			// Immediately advance to next period: update date then keep as incomplete
+			updateText(taskId, task.text, nextDueDate.toISOString(), task.categoryId, task.repeat, task.description);
+		} else {
+			// Normal toggle (no repeat, or uncompleting a task)
+			toggleComplete(taskId);
+		}
+	};
 
 	const handleAdd = () => {
 		// Remove hashtags from text before saving
@@ -250,7 +545,7 @@ function App() {
 			setSelectedCategoryId(undefined);
 			setSelectedRepeat('none');
 			setCustomDate(getTomorrowDate());
-			setCustomTime('');
+			setCustomTime('12:00');
 			setDescription('');
 			setShowDescription(false);
 		}
@@ -272,7 +567,7 @@ function App() {
 			// Check if time was explicitly set (seconds !== 1)
 			const isTimeNotSet = reminderDate.getHours() === 9 && reminderDate.getMinutes() === 0 && reminderDate.getSeconds() === 1;
 			if (isTimeNotSet) {
-				setCustomTime(''); // Time wasn't set, keep it empty
+				setCustomTime('12:00'); // Default to 12:00
 			} else {
 				const timeStr = reminderDate.toTimeString().slice(0, 5);
 				setCustomTime(timeStr);
@@ -280,7 +575,7 @@ function App() {
 		} else {
 			// Only use defaults if no reminder
 			setCustomDate(getTomorrowDate());
-			setCustomTime('');
+			setCustomTime('12:00');
 		}
 
 		// Focus and scroll to input
@@ -330,16 +625,10 @@ function App() {
 				break;
 		}
 
-		// Always set the date and time in the fields
-		setCustomDate(reminderDate);
-		const timeStr = reminderDate.toTimeString().slice(0, 5);
-		setCustomTime(timeStr);
-
-		// If advanced settings are closed, also set reminder and close dialog
-		if (!showAdvancedReminder) {
-			setSelectedReminder(reminderDate.toISOString());
-			setShowReminderPicker(false);
-		}
+		// Quick buttons always auto-apply and close the dialog
+		setSelectedReminder(reminderDate.toISOString());
+		setShowReminderPicker(false);
+		setShowAdvancedReminder(false);
 	};
 
 	const setCustomReminder = () => {
@@ -510,6 +799,9 @@ function App() {
 	};
 
 	const toggleCategoryExpansion = (categoryId: string) => {
+		// Mark as manually toggled
+		setManuallyToggledCategories(prev => new Set(prev).add(categoryId));
+
 		setCollapsedCategories(prev => {
 			const newSet = new Set(prev);
 			if (newSet.has(categoryId)) {
@@ -522,6 +814,9 @@ function App() {
 	};
 
 	const toggleDateGroupExpansion = (groupId: string) => {
+		// Mark as manually toggled
+		setManuallyToggledDateGroups(prev => new Set(prev).add(groupId));
+
 		setExpandedDateGroups(prev => {
 			const newSet = new Set(prev);
 			if (newSet.has(groupId)) {
@@ -537,18 +832,42 @@ function App() {
 	const groupTasksByCategory = () => {
 		const grouped: { categoryId: string | null; tasks: typeof sortedTasks }[] = [];
 
+		// Sort function: by due date (urgent first), no due date last
+		const sortByDueDate = (a: typeof sortedTasks[0], b: typeof sortedTasks[0]) => {
+			// Incomplete before completed
+			if (a.completed !== b.completed) {
+				return a.completed ? 1 : -1;
+			}
+
+			const aHasReminder = !!a.reminder;
+			const bHasReminder = !!b.reminder;
+
+			// Both have reminders: sort by date (earliest first)
+			if (aHasReminder && bHasReminder) {
+				return new Date(a.reminder!).getTime() - new Date(b.reminder!).getTime();
+			}
+
+			// One has reminder: reminder comes first
+			if (aHasReminder !== bHasReminder) {
+				return aHasReminder ? -1 : 1;
+			}
+
+			// Neither has reminder: sort by creation (oldest first)
+			return (a.createdAt || 0) - (b.createdAt || 0);
+		};
+
 		// Add groups for each category in order
 		categories.forEach(cat => {
 			const categoryTasks = sortedTasks.filter(task => task.categoryId === cat.id);
 			if (categoryTasks.length > 0) {
-				grouped.push({ categoryId: cat.id, tasks: categoryTasks });
+				grouped.push({ categoryId: cat.id, tasks: [...categoryTasks].sort(sortByDueDate) });
 			}
 		});
 
 		// Add tasks without category at the end
 		const noCategoryTasks = sortedTasks.filter(task => !task.categoryId);
 		if (noCategoryTasks.length > 0) {
-			grouped.push({ categoryId: null, tasks: noCategoryTasks });
+			grouped.push({ categoryId: null, tasks: [...noCategoryTasks].sort(sortByDueDate) });
 		}
 
 		return grouped;
@@ -689,6 +1008,21 @@ function App() {
 		setShowUnarchiveAllConfirm(false);
 	};
 
+	const handleResetCategories = () => {
+		setShowResetCategoriesConfirm(true);
+	};
+
+	const confirmResetCategories = () => {
+		resetCategories();
+		setShowResetCategoriesConfirm(false);
+		setShowCategoryManager(false);
+		resetCategoryForm();
+	};
+
+	const cancelResetCategories = () => {
+		setShowResetCategoriesConfirm(false);
+	};
+
 	const formatReminderTime = (isoString: string) => {
 		const date = new Date(isoString);
 		const now = new Date();
@@ -811,6 +1145,23 @@ function App() {
 				return (b.createdAt || 0) - (a.createdAt || 0);
 
 			case 'repeating':
+				// Sort by due date (earliest first), no due date last
+				const aHasReminder2 = !!a.reminder;
+				const bHasReminder2 = !!b.reminder;
+
+				if (aHasReminder2 && bHasReminder2) {
+					const aDate2 = new Date(a.reminder!).getTime();
+					const bDate2 = new Date(b.reminder!).getTime();
+					return aDate2 - bDate2;
+				}
+
+				if (aHasReminder2 !== bHasReminder2) {
+					return aHasReminder2 ? -1 : 1;
+				}
+
+				// No due date: sort by creation
+				return (a.createdAt || 0) - (b.createdAt || 0);
+
 			case 'archived':
 				// Sort by creation time (newest first)
 				return (b.createdAt || 0) - (a.createdAt || 0);
@@ -1036,7 +1387,16 @@ function App() {
 					{/* Reminder Picker Popup */}
 					{showReminderPicker && (
 					<div className="modal-overlay" onClick={() => { setShowReminderPicker(false); setShowAdvancedReminder(false); }}>
-					<div className="reminder-popup" onClick={(e) => e.stopPropagation()}>
+					<div
+						className="reminder-popup"
+						onClick={(e) => e.stopPropagation()}
+						onKeyDown={(e) => {
+							if (e.key === 'Enter' && e.ctrlKey && customDate) {
+								e.preventDefault();
+								setCustomReminder();
+							}
+						}}
+					>
 						<div className="reminder-header">
 							<h3>Reminder</h3>
 							<button className="close-popup" onClick={() => { setShowReminderPicker(false); setShowAdvancedReminder(false); }}>✕</button>
@@ -1391,7 +1751,7 @@ function App() {
 											type="checkbox"
 											className="task-checkbox"
 											checked={task.completed}
-											onChange={() => toggleComplete(task.id)}
+											onChange={() => handleToggleComplete(task.id)}
 										/>
 										<span className="checkbox-tooltip">
 											{task.completed ? 'Mark as not Completed' : 'Mark as Complete'}
@@ -1456,7 +1816,7 @@ function App() {
 													<div className="separator-left">
 														<span className="separator-text">🔴 OVERDUE TASKS</span>
 														<span className="separator-count">
-															(<span className="count-remaining overdue">{remaining}</span> / {total})
+															(Remaining <span className="count-remaining overdue">{remaining}</span> / {total})
 														</span>
 													</div>
 													<span className="separator-chevron">{isExpanded ? '▼' : '▶'}</span>
@@ -1478,7 +1838,7 @@ function App() {
 													<div className="separator-left">
 														<span className="separator-text">🟠 TASKS DUE TODAY</span>
 														<span className="separator-count">
-															(<span className="count-remaining today">{remaining}</span> / {total})
+															(Remaining <span className="count-remaining today">{remaining}</span> / {total})
 														</span>
 													</div>
 													<span className="separator-chevron">{isExpanded ? '▼' : '▶'}</span>
@@ -1500,7 +1860,7 @@ function App() {
 													<div className="separator-left">
 														<span className="separator-text">🔵 TASKS DUE SOON</span>
 														<span className="separator-count">
-															(<span className="count-remaining soon">{remaining}</span> / {total})
+															(Remaining <span className="count-remaining soon">{remaining}</span> / {total})
 														</span>
 													</div>
 													<span className="separator-chevron">{isExpanded ? '▼' : '▶'}</span>
@@ -1522,7 +1882,7 @@ function App() {
 													<div className="separator-left">
 														<span className="separator-text"><span className="grey-circle">⚫</span> TASKS WITH NO DUE DATE</span>
 														<span className="separator-count">
-															(<span className="count-remaining no-date">{remaining}</span> / {total})
+															(Remaining <span className="count-remaining no-date">{remaining}</span> / {total})
 														</span>
 													</div>
 													<span className="separator-chevron">{isExpanded ? '▼' : '▶'}</span>
@@ -1543,31 +1903,36 @@ function App() {
 							const total = group.tasks.length;
 
 							return (
-								<div key={group.categoryId || 'no-category'} className="category-group">
+								<div key={group.categoryId || 'no-category'} className="task-group-section">
 									<div
-										className="category-group-header"
+										className="task-group-separator clickable-separator"
 										onClick={() => toggleCategoryExpansion(group.categoryId || 'no-category')}
 									>
-										<div className="category-group-info">
+										<div className="separator-left">
 											{category ? (
-												<span className="category-group-chip" style={{ backgroundColor: category.color }}>
-													#{category.name.toLowerCase()}
-												</span>
+												<>
+													<span className="separator-text">
+														<span className="category-chip-inline" style={{ backgroundColor: category.color }}>
+															#{category.name.toLowerCase()}
+														</span>
+													</span>
+													<span className="separator-count">
+														(Remaining <span className="count-remaining">{remaining}</span> / {total})
+													</span>
+												</>
 											) : (
-												<span className="category-group-chip no-category">
-													No category
-												</span>
+												<>
+													<span className="separator-text">NO CATEGORY</span>
+													<span className="separator-count">
+														(Remaining <span className="count-remaining">{remaining}</span> / {total})
+													</span>
+												</>
 											)}
-											<span className="category-group-count">
-												(<span className="count-remaining">{remaining}</span> / {total})
-											</span>
 										</div>
-										<span className="category-group-chevron">{isExpanded ? '▼' : '▶'}</span>
+										<span className="separator-chevron">{isExpanded ? '▼' : '▶'}</span>
 									</div>
 
-									{isExpanded && (
-										<div className="category-group-tasks">
-											{group.tasks.map((task) => (
+									{isExpanded && group.tasks.map((task) => (
 												<div
 													key={task.id}
 													className={`task-item ${task.completed ? 'completed' : ''}`}
@@ -1578,7 +1943,7 @@ function App() {
 															type="checkbox"
 															className="task-checkbox"
 															checked={task.completed}
-															onChange={() => toggleComplete(task.id)}
+															onChange={() => handleToggleComplete(task.id)}
 														/>
 														<span className="checkbox-tooltip">
 															{task.completed ? 'Mark as not Completed' : 'Mark as Complete'}
@@ -1614,8 +1979,6 @@ function App() {
 													</div>
 												</div>
 											))}
-										</div>
-									)}
 								</div>
 							);
 						})}
@@ -1632,7 +1995,7 @@ function App() {
 										type="checkbox"
 										className="task-checkbox"
 										checked={task.completed}
-										onChange={() => toggleComplete(task.id)}
+										onChange={() => handleToggleComplete(task.id)}
 									/>
 									<span className="checkbox-tooltip">
 										{task.completed ? 'Mark as not Completed' : 'Mark as Complete'}
@@ -1853,6 +2216,24 @@ function App() {
 				);
 			})()}
 
+			{/* Reset Categories Confirmation Dialog */}
+			{showResetCategoriesConfirm && (
+				<div className="modal-overlay delete-confirm-overlay" onClick={cancelResetCategories}>
+					<div className="modal-content" onClick={(e) => e.stopPropagation()}>
+						<h3>Reset to Default Categories?</h3>
+						<p>This will delete all custom categories and restore the 6 default categories (Home, Work, Errands, Personal, Health, Finance). Tasks with custom categories will have their category removed.</p>
+						<div className="modal-actions">
+							<button className="modal-btn yes-btn" onClick={confirmResetCategories} autoFocus>
+								Yes, Reset
+							</button>
+							<button className="modal-btn no-btn" onClick={cancelResetCategories}>
+								Cancel
+							</button>
+						</div>
+					</div>
+				</div>
+			)}
+
 			{/* View Task Details Modal */}
 			{viewingTask && (() => {
 				const task = savedTexts.find(t => t.id === viewingTask);
@@ -1903,7 +2284,7 @@ function App() {
 										type="checkbox"
 										className="task-checkbox"
 										checked={task.completed}
-										onChange={() => toggleComplete(task.id)}
+										onChange={() => handleToggleComplete(task.id)}
 									/>
 									<span className="checkbox-tooltip">
 										{task.completed ? 'Mark as not Completed' : 'Mark as Complete'}
@@ -2387,7 +2768,16 @@ function App() {
 			{/* Category Manager Modal */}
 			{showCategoryManager && (
 				<div className="modal-overlay category-manager-overlay" onClick={() => { setShowCategoryManager(false); resetCategoryForm(); }}>
-					<div className="category-manager-modal" onClick={(e) => e.stopPropagation()}>
+					<div
+						className="category-manager-modal"
+						onClick={(e) => e.stopPropagation()}
+						onKeyDown={(e) => {
+							if (e.key === 'Enter' && e.ctrlKey && newCategoryName.trim()) {
+								e.preventDefault();
+								handleSaveCategory();
+							}
+						}}
+					>
 						<div className="modal-header">
 							<h3>Manage Categories</h3>
 							<button className="close-popup" onClick={() => { setShowCategoryManager(false); resetCategoryForm(); }}>✕</button>
@@ -2493,6 +2883,16 @@ function App() {
 									</div>
 								</div>
 							))}
+						</div>
+
+						{/* Reset to Default Button */}
+						<div className="reset-categories-section">
+							<button
+								className="reset-categories-btn"
+								onClick={handleResetCategories}
+							>
+								🔄 Reset to Default Categories
+							</button>
 						</div>
 					</div>
 				</div>

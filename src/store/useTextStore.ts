@@ -45,6 +45,7 @@ interface TextState {
 	updateCategory: (id: string, name: string, color: string) => void;
 	deleteCategory: (id: string) => void;
 	reorderCategories: (startIndex: number, endIndex: number) => void;
+	resetCategories: () => void;
 }
 
 const useTextStore = create<TextState>()(
@@ -111,6 +112,15 @@ const useTextStore = create<TextState>()(
 					newCategories.splice(endIndex, 0, removed);
 					return { categories: newCategories };
 				}),
+			resetCategories: () =>
+				set((state) => ({
+					categories: DEFAULT_CATEGORIES,
+					// Remove custom category IDs from tasks (keep only default ones)
+					savedTexts: state.savedTexts.map((task) => {
+						const isDefaultCategory = DEFAULT_CATEGORIES.some(cat => cat.id === task.categoryId);
+						return isDefaultCategory ? task : { ...task, categoryId: undefined };
+					}),
+				})),
 		}),
 		{
 			name: 'text-storage',
