@@ -1356,7 +1356,7 @@ function App() {
 											onChange={() => toggleComplete(task.id)}
 										/>
 										<span className="checkbox-tooltip">
-											{task.completed ? 'Mark as undone' : 'Mark as done'}
+											{task.completed ? 'Mark as not Completed' : 'Mark as Complete'}
 										</span>
 									</div>
 									<div className="task-content">
@@ -1543,7 +1543,7 @@ function App() {
 															onChange={() => toggleComplete(task.id)}
 														/>
 														<span className="checkbox-tooltip">
-															{task.completed ? 'Mark as undone' : 'Mark as done'}
+															{task.completed ? 'Mark as not Completed' : 'Mark as Complete'}
 														</span>
 													</div>
 													<div className="task-content">
@@ -1597,7 +1597,7 @@ function App() {
 										onChange={() => toggleComplete(task.id)}
 									/>
 									<span className="checkbox-tooltip">
-										{task.completed ? 'Mark as undone' : 'Mark as done'}
+										{task.completed ? 'Mark as not Completed' : 'Mark as Complete'}
 									</span>
 								</div>
 								<div className="task-content">
@@ -1867,7 +1867,7 @@ function App() {
 										onChange={() => toggleComplete(task.id)}
 									/>
 									<span className="checkbox-tooltip">
-										{task.completed ? 'Mark as undone' : 'Mark as done'}
+										{task.completed ? 'Mark as not Completed' : 'Mark as Complete'}
 									</span>
 								</div>
 								<div className="task-title-wrapper">
