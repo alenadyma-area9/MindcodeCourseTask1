@@ -162,7 +162,7 @@ function App() {
 			}
 
 			// Check if click is outside category popup in modal
-			if (showCategoryPickerInPopup && !target.closest('.popup-inline') && !target.closest('.meta-icon-btn') && !target.closest('.clickable-chip')) {
+			if (showCategoryPickerInPopup && !target.closest('.category-picker-in-popup-overlay') && !target.closest('.category-popup') && !target.closest('.meta-icon-btn') && !target.closest('.clickable-chip')) {
 				setShowCategoryPickerInPopup(false);
 			}
 
@@ -1846,6 +1846,7 @@ function App() {
 				};
 
 				return (
+					<>
 					<div className="modal-overlay" onClick={handleCancelAndClose}>
 						<div
 							className="task-details-modal"
@@ -2180,45 +2181,6 @@ function App() {
 									</div>
 								)}
 
-								{/* Category Picker in Popup */}
-								{showCategoryPickerInPopup && (
-									<div className="modal-overlay" onClick={() => setShowCategoryPickerInPopup(false)}>
-										<div
-											className="category-popup"
-											onClick={(e) => e.stopPropagation()}
-										>
-											<div className="category-header">
-												<h3>Choose Category</h3>
-												<button className="close-popup" onClick={() => setShowCategoryPickerInPopup(false)}>✕</button>
-											</div>
-											<div className="category-list">
-												{categories.map((cat) => (
-													<button
-														key={cat.id}
-														className="category-option"
-														style={{ borderLeftColor: cat.color, backgroundColor: cat.color }}
-														onClick={() => {
-															setEditingTaskCategory(cat.id);
-															setShowCategoryPickerInPopup(false);
-														}}
-													>
-														<span className="category-name">#{cat.name.toLowerCase()}</span>
-													</button>
-												))}
-											</div>
-											<button
-												className="manage-categories-btn"
-												onClick={() => {
-													setShowCategoryManager(true);
-													setShowCategoryPickerInPopup(false);
-												}}
-											>
-												⚙️ Manage Categories
-											</button>
-											<p className="category-tip">💡 Tip: Type #{categories[0]?.name.toLowerCase()} in your task to auto-tag!</p>
-										</div>
-									</div>
-								)}
 							</div>
 
 							{/* Actions */}
@@ -2254,16 +2216,60 @@ function App() {
 									>
 										Cancel
 									</button>
-									<button
-										className="modal-btn done-btn"
-										onClick={handleSaveAndClose}
-									>
-										Apply
-									</button>
-								</div>
+								<button
+									className="modal-btn done-btn"
+									onClick={handleSaveAndClose}
+								>
+									Apply
+								</button>
 							</div>
 						</div>
 					</div>
+				</div>
+
+				{/* Category Picker in Popup - MOVED OUTSIDE modal for proper z-index */}
+				{showCategoryPickerInPopup && (
+					<div className="modal-overlay category-picker-in-popup-overlay" onClick={() => setShowCategoryPickerInPopup(false)}>
+						<div
+							className="category-popup"
+							onClick={(e) => e.stopPropagation()}
+						>
+							<div className="category-header">
+								<h3>Choose Category</h3>
+								<button className="close-popup" onClick={() => setShowCategoryPickerInPopup(false)}>✕</button>
+							</div>
+							<div className="category-list">
+								{categories.map((cat) => (
+									<button
+										key={cat.id}
+										className="category-option"
+										style={{ borderLeftColor: cat.color, backgroundColor: cat.color }}
+										onClick={() => {
+											setEditingTaskCategory(cat.id);
+											setShowCategoryPickerInPopup(false);
+										}}
+									>
+										<span className="category-name">#{cat.name.toLowerCase()}</span>
+									</button>
+								))}
+							</div>
+							<button
+								className="manage-categories-btn"
+								onClick={(e) => {
+									e.stopPropagation();
+									setShowCategoryPickerInPopup(false);
+									setTimeout(() => {
+										setShowCategoryManager(true);
+									}, 0);
+								}}
+							>
+								⚙️ Manage Categories
+							</button>
+							<p className="category-tip">💡 Tip: Type #{categories[0]?.name.toLowerCase()} in your task to auto-tag!</p>
+						</div>
+					</div>
+				)}
+				</>
 				);
 			})()}
 
@@ -2342,7 +2348,7 @@ function App() {
 
 			{/* Category Manager Modal */}
 			{showCategoryManager && (
-				<div className="modal-overlay" onClick={() => { setShowCategoryManager(false); resetCategoryForm(); }}>
+				<div className="modal-overlay category-manager-overlay" onClick={() => { setShowCategoryManager(false); resetCategoryForm(); }}>
 					<div className="category-manager-modal" onClick={(e) => e.stopPropagation()}>
 						<div className="modal-header">
 							<h3>Manage Categories</h3>
