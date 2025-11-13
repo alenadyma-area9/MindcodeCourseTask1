@@ -2392,6 +2392,14 @@
 	flex-shrink: 0;
 }
 
+.task-details-header .checkbox-tooltip {
+	left: calc(100% + 0.5rem);
+	right: auto;
+	bottom: 50%;
+	transform: translateY(50%);
+	margin-bottom: 0;
+}
+
 .task-title-wrapper {
 	flex: 1;
 	display: flex;
@@ -2769,10 +2777,8 @@
 
 .task-icon-action-btn .action-tooltip {
 	position: absolute;
-	top: auto;
-	bottom: calc(100% + 0.5rem);
-	left: 50%;
-	transform: translateX(-50%);
+	top: calc(100% + 0.5rem);
+	left: 0;
 	background: rgba(0, 0, 0, 0.9);
 	color: white;
 	padding: 0.5rem 0.75rem;
@@ -2788,6 +2794,7 @@
 	box-shadow: 0 3px 10px rgba(0, 0, 0, 0.4);
 	min-width: max-content;
 	max-width: 250px;
+	transform: none;
 }
 
 .task-icon-action-btn:hover .action-tooltip {
