@@ -2382,6 +2382,20 @@ function App() {
 								</div>
 							</div>
 
+							{/* Preview Section */}
+							<div className="category-preview-section">
+								<div className="category-preview-wrapper">
+									<div
+										className="category-preview-chip"
+										style={{ backgroundColor: newCategoryColor }}
+									>
+										<span className="category-preview-text">
+											#{newCategoryName || 'categoryname'}
+										</span>
+									</div>
+								</div>
+							</div>
+
 							<div className="form-actions">
 								<button
 									className="save-category-btn"
