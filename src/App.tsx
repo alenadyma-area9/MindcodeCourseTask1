@@ -45,7 +45,7 @@ function App() {
 	};
 
 	const [customDate, setCustomDate] = useState<Date>(getTomorrowDate());
-	const [customTime, setCustomTime] = useState('');
+	const [customTime, setCustomTime] = useState('12:00');
 	const [showCategoryPicker, setShowCategoryPicker] = useState(false);
 	const [selectedCategoryId, setSelectedCategoryId] = useState<string | undefined>(undefined);
 	const [selectedRepeat, setSelectedRepeat] = useState<RepeatOption>('none');
@@ -67,6 +67,7 @@ function App() {
 	const [editingTaskRepeat, setEditingTaskRepeat] = useState<RepeatOption>('none');
 	const [showReminderPickerInPopup, setShowReminderPickerInPopup] = useState(false);
 	const [showCategoryPickerInPopup, setShowCategoryPickerInPopup] = useState(false);
+	const [isEditingDescription, setIsEditingDescription] = useState(false);
 	const [draggedCategoryIndex, setDraggedCategoryIndex] = useState<number | null>(null);
 	const [currentView, setCurrentView] = useState<'dates' | 'recent' | 'categories' | 'repeating' | 'archived'>('dates');
 	const [showViewDropdown, setShowViewDropdown] = useState(false);
@@ -95,7 +96,7 @@ function App() {
 		}
 	}, [currentText, categories, selectedCategoryId]);
 
-	// Initialize editing state when viewing task
+	// Initialize editing state when viewing task (only on first open, not on updates)
 	useEffect(() => {
 		if (viewingTask) {
 			const task = savedTexts.find(t => t.id === viewingTask);
@@ -131,9 +132,12 @@ function App() {
 						textarea.style.height = textarea.scrollHeight + 'px';
 					}
 				}, 0);
+
+				// Reset description editing mode
+				setIsEditingDescription(false);
 			}
 		}
-	}, [viewingTask, savedTexts]);
+	}, [viewingTask]); // Only depend on viewingTask, not savedTexts
 
 	// Close popups when clicking outside
 	useEffect(() => {
@@ -171,13 +175,18 @@ function App() {
 			if (showMoreOptions && !target.closest('.more-options-menu')) {
 				setShowMoreOptions(false);
 			}
+
+			// Check if click is outside description editor
+			if (isEditingDescription && !target.closest('.rich-text-editor') && !target.closest('.task-description-view')) {
+				setIsEditingDescription(false);
+			}
 		};
 
 		document.addEventListener('mousedown', handleClickOutside);
 		return () => {
 			document.removeEventListener('mousedown', handleClickOutside);
 		};
-	}, [showReminderPicker, showCategoryPicker, showReminderPickerInPopup, showCategoryPickerInPopup, showViewDropdown, showMoreOptions]);
+	}, [showReminderPicker, showCategoryPicker, showReminderPickerInPopup, showCategoryPickerInPopup, showViewDropdown, showMoreOptions, isEditingDescription]);
 
 	const handleAdd = () => {
 		// Remove hashtags from text before saving
@@ -285,13 +294,13 @@ function App() {
 				break;
 		}
 
-		// If advanced settings are open, just set the date/time but don't close
-		if (showAdvancedReminder) {
-			setCustomDate(reminderDate);
-			const timeStr = reminderDate.toTimeString().slice(0, 5);
-			setCustomTime(timeStr);
-		} else {
-			// If advanced settings are closed, set reminder and close dialog
+		// Always set the date and time in the fields
+		setCustomDate(reminderDate);
+		const timeStr = reminderDate.toTimeString().slice(0, 5);
+		setCustomTime(timeStr);
+
+		// If advanced settings are closed, also set reminder and close dialog
+		if (!showAdvancedReminder) {
 			setSelectedReminder(reminderDate.toISOString());
 			setShowReminderPicker(false);
 		}
@@ -320,7 +329,7 @@ function App() {
 		setSelectedReminder(undefined);
 		setSelectedRepeat('none');
 		setCustomDate(getTomorrowDate());
-		setCustomTime('');
+		setCustomTime('12:00');
 		setShowReminderPicker(false);
 		setShowAdvancedReminder(false);
 	};
@@ -863,12 +872,29 @@ function App() {
 						type="text"
 						value={currentText}
 						onChange={(e) => setCurrentText(e.target.value)}
-						onKeyDown={(e) => e.key === 'Enter' && e.ctrlKey && handleAdd()}
+						onKeyDown={(e) => {
+							if (e.key === 'Enter' && e.ctrlKey) {
+								const canSubmit = currentText.replace(/#\w+/g, '').trim() || description.trim();
+								if (canSubmit) {
+									handleAdd();
+								}
+							}
+						}}
 						placeholder="What's your next task?"
 						maxLength={250}
 					/>
-					<button onClick={handleAdd}>{editingId ? 'Update' : 'ADD TASK'}</button>
+					<button
+						onClick={handleAdd}
+						disabled={!currentText.replace(/#\w+/g, '').trim() && !description.trim()}
+					>
+						{editingId ? 'Update' : 'ADD TASK'}
+					</button>
 				</div>
+				{currentText.length >= 200 && (
+					<div className={`char-counter main-input-counter ${currentText.length > 230 ? 'warning' : ''} ${currentText.length === 250 ? 'limit' : ''}`}>
+						{currentText.length} / 250
+					</div>
+				)}
 
 				{/* Category and Reminder Icons + Info Below Input */}
 				<div className="input-meta">
@@ -1010,112 +1036,77 @@ function App() {
 
 							{showAdvancedReminder && (
 								<div className="advanced-content">
-									<div className="custom-datetime">
-										<div className="datetime-field">
-											<label>Date</label>
-											<DatePicker
-												selected={customDate}
-												onChange={(date: Date | null) => date && setCustomDate(date)}
-												dateFormat="dd/MM/yyyy"
-												calendarStartDay={1}
-												className="date-picker-input"
-												popperPlacement="bottom-start"
-												popperProps={{
-													strategy: "fixed"
+									<div className="datetime-row">
+										<label>Date</label>
+										<DatePicker
+											selected={customDate}
+											onChange={(date: Date | null) => date && setCustomDate(date)}
+											dateFormat="dd/MM/yyyy"
+											calendarStartDay={1}
+											className="date-picker-input"
+											popperPlacement="bottom"
+											popperProps={{
+												strategy: "fixed",
+												modifiers: [
+													{
+														name: 'offset',
+														options: {
+															offset: [0, 8]
+														}
+													},
+													{
+														name: 'preventOverflow',
+														options: {
+															boundary: 'viewport',
+															padding: 8
+														}
+													}
+												]
+											}}
+										/>
+										<label>Time</label>
+										<div className="time-picker-custom">
+											<Select
+												value={customTime ? { value: customTime.split(':')[0], label: customTime.split(':')[0] } : null}
+												onChange={(option) => {
+													if (option) {
+														const minutes = customTime ? customTime.split(':')[1] : '00';
+														setCustomTime(`${option.value}:${minutes}`);
+													}
 												}}
+												options={Array.from({ length: 24 }, (_, i) => {
+													const hour = i.toString().padStart(2, '0');
+													return { value: hour, label: hour };
+												})}
+												className="time-select-container"
+												classNamePrefix="time-select"
+												isSearchable={true}
+												menuPlacement="auto"
+												placeholder="HH"
 											/>
-										</div>
-										<div className="datetime-field">
-											<label>Time (optional)</label>
-											<div className="time-picker-custom">
-												<Select
-													value={customTime ? { value: customTime.split(':')[0], label: customTime.split(':')[0] } : { value: '', label: 'HH' }}
-													onChange={(option) => {
-														if (option && option.value === '') {
-															// Empty option selected - clear the time
-															setCustomTime('');
-														} else if (option) {
-															const minutes = customTime ? customTime.split(':')[1] : '00';
-															setCustomTime(`${option.value}:${minutes}`);
-														}
-													}}
-													options={[
-														{ value: '', label: '--' },
-														...Array.from({ length: 24 }, (_, i) => {
-															const hour = i.toString().padStart(2, '0');
-															return { value: hour, label: hour };
-														})
-													]}
-													className="time-select-container"
-													classNamePrefix="time-select"
-													isSearchable={true}
-													menuPlacement="auto"
-													placeholder="HH"
-													filterOption={(option, inputValue) => {
-														if (!inputValue) return true;
-														if (option.value === '') return false; // Hide empty option when typing
-														const numInput = parseInt(inputValue);
-														const numOption = parseInt(option.value);
-														return !isNaN(numInput) && numOption === numInput;
-													}}
-													onInputChange={(inputValue, { action }) => {
-														if (action === 'input-change') {
-															const num = parseInt(inputValue);
-															if (!isNaN(num) && num >= 0 && num <= 23) {
-																const hour = num.toString().padStart(2, '0');
-																const minutes = customTime ? customTime.split(':')[1] : '00';
-																setCustomTime(`${hour}:${minutes}`);
-															}
-														}
-													}}
-												/>
-												<span className="time-separator">:</span>
-												<Select
-													value={customTime ? { value: customTime.split(':')[1], label: customTime.split(':')[1] } : { value: '', label: 'MM' }}
-													onChange={(option) => {
-														if (option && option.value === '') {
-															// Empty option selected - clear the time
-															setCustomTime('');
-														} else if (option) {
-															const hours = customTime ? customTime.split(':')[0] : '09';
-															setCustomTime(`${hours}:${option.value}`);
-														}
-													}}
-													options={[
-														{ value: '', label: '--' },
-														...Array.from({ length: 60 }, (_, i) => {
-															const minute = i.toString().padStart(2, '0');
-															return { value: minute, label: minute };
-														})
-													]}
-													className="time-select-container"
-													classNamePrefix="time-select"
-													isSearchable={true}
-													menuPlacement="auto"
-													placeholder="MM"
-													filterOption={(option, inputValue) => {
-														if (!inputValue) return true;
-														if (option.value === '') return false; // Hide empty option when typing
-														const numInput = parseInt(inputValue);
-														const numOption = parseInt(option.value);
-														return !isNaN(numInput) && numOption === numInput;
-													}}
-													onInputChange={(inputValue, { action }) => {
-														if (action === 'input-change') {
-															const num = parseInt(inputValue);
-															if (!isNaN(num) && num >= 0 && num <= 59) {
-																const minute = num.toString().padStart(2, '0');
-																const hours = customTime ? customTime.split(':')[0] : '09';
-																setCustomTime(`${hours}:${minute}`);
-															}
-														}
-													}}
-												/>
-											</div>
+											<span className="time-separator">:</span>
+											<Select
+												value={customTime ? { value: customTime.split(':')[1], label: customTime.split(':')[1] } : null}
+												onChange={(option) => {
+													if (option) {
+														const hours = customTime ? customTime.split(':')[0] : '12';
+														setCustomTime(`${hours}:${option.value}`);
+													}
+												}}
+												options={Array.from({ length: 60 }, (_, i) => {
+													const minute = i.toString().padStart(2, '0');
+													return { value: minute, label: minute };
+												})}
+												className="time-select-container"
+												classNamePrefix="time-select"
+												isSearchable={true}
+												menuPlacement="auto"
+												placeholder="MM"
+											/>
 										</div>
 									</div>
 
-									<div className="repeat-field">
+									<div className="repeat-row">
 										<label>Repeat</label>
 										<Select
 											value={REPEAT_OPTIONS.find(opt => opt.value === selectedRepeat)}
@@ -1179,10 +1170,6 @@ function App() {
 					</div>
 				)}
 				</div>
-
-				{currentText.length === 250 && (
-					<p className="limit-warning">Turn big goals into bite-sized wins. Max 250 symbols.</p>
-				)}
 			</div>
 
 			{/* Display the list of saved texts */}
@@ -1281,7 +1268,7 @@ function App() {
 								<span className="view-label">
 									{currentView === 'dates' && 'By Due Date'}
 									{currentView === 'recent' && 'Recently Added'}
-									{currentView === 'categories' && 'By Categories'}
+									{currentView === 'categories' && 'By Category'}
 									{currentView === 'repeating' && 'Repeating Tasks'}
 									{currentView === 'archived' && 'Archived tasks'}
 								</span>
@@ -1316,7 +1303,7 @@ function App() {
 											setShowViewDropdown(false);
 										}}
 									>
-										By Categories
+										By Category
 									</button>
 									<button
 										className={`view-option ${currentView === 'repeating' ? 'active' : ''}`}
@@ -1847,6 +1834,7 @@ function App() {
 					setViewingTask(null);
 					setShowReminderPickerInPopup(false);
 					setShowCategoryPickerInPopup(false);
+					setIsEditingDescription(false);
 				};
 
 				const handleCancelAndClose = () => {
@@ -1854,6 +1842,7 @@ function App() {
 					setViewingTask(null);
 					setShowReminderPickerInPopup(false);
 					setShowCategoryPickerInPopup(false);
+					setIsEditingDescription(false);
 				};
 
 				return (
@@ -1868,11 +1857,6 @@ function App() {
 								}
 							}}
 						>
-							{/* Close button row */}
-							<div className="modal-close-row">
-								<button className="close-popup" onClick={handleCancelAndClose}>✕</button>
-							</div>
-
 							{/* Task Title with Checkbox */}
 							<div className="task-details-header">
 								<div className="checkbox-wrapper">
@@ -1886,33 +1870,56 @@ function App() {
 										{task.completed ? 'Mark as undone' : 'Mark as done'}
 									</span>
 								</div>
-								<textarea
-									className={`task-details-title-input ${task.completed ? 'completed' : ''}`}
-									value={editingTaskTitle}
-									onChange={(e) => setEditingTaskTitle(e.target.value)}
-									placeholder="What's your next task?"
-									maxLength={250}
-									rows={1}
-									onInput={(e) => {
-										// Auto-expand textarea with max 3 lines
-										const target = e.target as HTMLTextAreaElement;
-										target.style.height = 'auto';
-										const lineHeight = 24; // approximate line height in pixels
-										const maxHeight = lineHeight * 3;
-										const newHeight = Math.min(target.scrollHeight, maxHeight);
-										target.style.height = newHeight + 'px';
-										target.style.overflowY = target.scrollHeight > maxHeight ? 'auto' : 'hidden';
-									}}
-								/>
+								<div className="task-title-wrapper">
+									<textarea
+										className={`task-details-title-input ${task.completed ? 'completed' : ''}`}
+										value={editingTaskTitle}
+										onChange={(e) => setEditingTaskTitle(e.target.value)}
+										placeholder="What's your next task?"
+										maxLength={250}
+										rows={1}
+										onInput={(e) => {
+											// Auto-expand textarea without limit
+											const target = e.target as HTMLTextAreaElement;
+											target.style.height = 'auto';
+											target.style.height = target.scrollHeight + 'px';
+										}}
+									/>
+									{editingTaskTitle.length >= 200 && (
+										<div className={`char-counter ${editingTaskTitle.length > 230 ? 'warning' : ''} ${editingTaskTitle.length === 250 ? 'limit' : ''}`}>
+											{editingTaskTitle.length} / 250
+										</div>
+									)}
+								</div>
 							</div>
 
 							{/* Description/Details - Editable */}
 							<div className="task-details-description">
-								<RichTextEditor
-									value={editingTaskDescription}
-									onChange={setEditingTaskDescription}
-									autoFocus={false}
-								/>
+								{isEditingDescription ? (
+									<>
+										<RichTextEditor
+											value={editingTaskDescription}
+											onChange={setEditingTaskDescription}
+											autoFocus={true}
+											maxLength={1000}
+										/>
+										{editingTaskDescription.length >= 900 && (
+											<div className={`char-counter description-counter ${editingTaskDescription.length > 950 ? 'warning' : ''} ${editingTaskDescription.length === 1000 ? 'limit' : ''}`}>
+												{editingTaskDescription.length} / 1000
+											</div>
+										)}
+									</>
+								) : (
+									<div
+										className={`task-description-view ${!editingTaskDescription ? 'empty' : ''}`}
+										onClick={() => setIsEditingDescription(true)}
+										dangerouslySetInnerHTML={{
+											__html: editingTaskDescription
+												? formatTextToHtml(editingTaskDescription)
+												: '<span class="description-placeholder-inline">Click to add details...</span>'
+										}}
+									/>
+								)}
 							</div>
 
 							{/* Metadata - Editable */}
@@ -2062,110 +2069,77 @@ function App() {
 
 											{showAdvancedReminder && (
 												<div className="advanced-content">
-													<div className="custom-datetime">
-														<div className="datetime-field">
-															<label>Date</label>
-															<DatePicker
-																selected={customDate}
-																onChange={(date: Date | null) => date && setCustomDate(date)}
-																dateFormat="dd/MM/yyyy"
-																calendarStartDay={1}
-																className="date-picker-input"
-																popperPlacement="bottom-start"
-																popperProps={{
-																	strategy: "fixed"
+													<div className="datetime-row">
+														<label>Date</label>
+														<DatePicker
+															selected={customDate}
+															onChange={(date: Date | null) => date && setCustomDate(date)}
+															dateFormat="dd/MM/yyyy"
+															calendarStartDay={1}
+															className="date-picker-input"
+															popperPlacement="bottom"
+															popperProps={{
+																strategy: "fixed",
+																modifiers: [
+																	{
+																		name: 'offset',
+																		options: {
+																			offset: [0, 8]
+																		}
+																	},
+																	{
+																		name: 'preventOverflow',
+																		options: {
+																			boundary: 'viewport',
+																			padding: 8
+																		}
+																	}
+																]
+															}}
+														/>
+														<label>Time</label>
+														<div className="time-picker-custom">
+															<Select
+																value={customTime ? { value: customTime.split(':')[0], label: customTime.split(':')[0] } : null}
+																onChange={(option) => {
+																	if (option) {
+																		const minutes = customTime ? customTime.split(':')[1] : '00';
+																		setCustomTime(`${option.value}:${minutes}`);
+																	}
 																}}
+																options={Array.from({ length: 24 }, (_, i) => {
+																	const hour = i.toString().padStart(2, '0');
+																	return { value: hour, label: hour };
+																})}
+																className="time-select-container"
+																classNamePrefix="time-select"
+																isSearchable={true}
+																menuPlacement="auto"
+																placeholder="HH"
 															/>
-														</div>
-														<div className="datetime-field">
-															<label>Time (optional)</label>
-															<div className="time-picker-custom">
-																<Select
-																	value={customTime ? { value: customTime.split(':')[0], label: customTime.split(':')[0] } : { value: '', label: 'HH' }}
-																	onChange={(option) => {
-																		if (option && option.value === '') {
-																			setCustomTime('');
-																		} else if (option) {
-																			const minutes = customTime ? customTime.split(':')[1] : '00';
-																			setCustomTime(`${option.value}:${minutes}`);
-																		}
-																	}}
-																	options={[
-																		{ value: '', label: '--' },
-																		...Array.from({ length: 24 }, (_, i) => {
-																			const hour = i.toString().padStart(2, '0');
-																			return { value: hour, label: hour };
-																		})
-																	]}
-																	className="time-select-container"
-																	classNamePrefix="time-select"
-																	isSearchable={true}
-																	menuPlacement="auto"
-																	placeholder="HH"
-																	filterOption={(option, inputValue) => {
-																		if (!inputValue) return true;
-																		if (option.value === '') return false;
-																		const numInput = parseInt(inputValue);
-																		const numOption = parseInt(option.value);
-																		return !isNaN(numInput) && numOption === numInput;
-																	}}
-																	onInputChange={(inputValue, { action }) => {
-																		if (action === 'input-change') {
-																			const num = parseInt(inputValue);
-																			if (!isNaN(num) && num >= 0 && num <= 23) {
-																				const hour = num.toString().padStart(2, '0');
-																				const minutes = customTime ? customTime.split(':')[1] : '00';
-																				setCustomTime(`${hour}:${minutes}`);
-																			}
-																		}
-																	}}
-																/>
-																<span className="time-separator">:</span>
-																<Select
-																	value={customTime ? { value: customTime.split(':')[1], label: customTime.split(':')[1] } : { value: '', label: 'MM' }}
-																	onChange={(option) => {
-																		if (option && option.value === '') {
-																			setCustomTime('');
-																		} else if (option) {
-																			const hours = customTime ? customTime.split(':')[0] : '09';
-																			setCustomTime(`${hours}:${option.value}`);
-																		}
-																	}}
-																	options={[
-																		{ value: '', label: '--' },
-																		...Array.from({ length: 60 }, (_, i) => {
-																			const minute = i.toString().padStart(2, '0');
-																			return { value: minute, label: minute };
-																		})
-																	]}
-																	className="time-select-container"
-																	classNamePrefix="time-select"
-																	isSearchable={true}
-																	menuPlacement="auto"
-																	placeholder="MM"
-																	filterOption={(option, inputValue) => {
-																		if (!inputValue) return true;
-																		if (option.value === '') return false;
-																		const numInput = parseInt(inputValue);
-																		const numOption = parseInt(option.value);
-																		return !isNaN(numInput) && numOption === numInput;
-																	}}
-																	onInputChange={(inputValue, { action }) => {
-																		if (action === 'input-change') {
-																			const num = parseInt(inputValue);
-																			if (!isNaN(num) && num >= 0 && num <= 59) {
-																				const minute = num.toString().padStart(2, '0');
-																				const hours = customTime ? customTime.split(':')[0] : '09';
-																				setCustomTime(`${hours}:${minute}`);
-																			}
-																		}
-																	}}
-																/>
-															</div>
+															<span className="time-separator">:</span>
+															<Select
+																value={customTime ? { value: customTime.split(':')[1], label: customTime.split(':')[1] } : null}
+																onChange={(option) => {
+																	if (option) {
+																		const hours = customTime ? customTime.split(':')[0] : '12';
+																		setCustomTime(`${hours}:${option.value}`);
+																	}
+																}}
+																options={Array.from({ length: 60 }, (_, i) => {
+																	const minute = i.toString().padStart(2, '0');
+																	return { value: minute, label: minute };
+																})}
+																className="time-select-container"
+																classNamePrefix="time-select"
+																isSearchable={true}
+																menuPlacement="auto"
+																placeholder="MM"
+															/>
 														</div>
 													</div>
 
-													<div className="repeat-field">
+													<div className="repeat-row">
 														<label>Repeat</label>
 														<Select
 															value={REPEAT_OPTIONS.find(opt => opt.value === editingTaskRepeat)}
@@ -2281,7 +2255,7 @@ function App() {
 										className="modal-btn done-btn"
 										onClick={handleSaveAndClose}
 									>
-										Done
+										Apply
 									</button>
 								</div>
 							</div>
@@ -2320,7 +2294,13 @@ function App() {
 								onChange={setTempDescription}
 								placeholder=""
 								autoFocus={true}
+								maxLength={1000}
 							/>
+							{tempDescription.length >= 900 && (
+								<div className={`char-counter description-counter ${tempDescription.length > 950 ? 'warning' : ''} ${tempDescription.length === 1000 ? 'limit' : ''}`}>
+									{tempDescription.length} / 1000
+								</div>
+							)}
 						</div>
 						<div className="modal-actions-row">
 							<button
@@ -2350,7 +2330,7 @@ function App() {
 									setShowDescriptionModal(false);
 								}}
 							>
-								Done
+								Apply
 							</button>
 						</div>
 					</div>

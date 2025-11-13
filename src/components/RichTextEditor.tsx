@@ -5,9 +5,10 @@ interface RichTextEditorProps {
 	onChange: (value: string) => void;
 	placeholder?: string;
 	autoFocus?: boolean;
+	maxLength?: number;
 }
 
-export default function RichTextEditor({ value, onChange, placeholder, autoFocus }: RichTextEditorProps) {
+export default function RichTextEditor({ value, onChange, placeholder, autoFocus, maxLength }: RichTextEditorProps) {
 	const textareaRef = useRef<HTMLTextAreaElement>(null);
 
 	// Auto-focus on mount if autoFocus is true
@@ -175,6 +176,7 @@ export default function RichTextEditor({ value, onChange, placeholder, autoFocus
 				onChange={(e) => onChange(e.target.value)}
 				onPaste={handlePaste}
 				placeholder={placeholder}
+				maxLength={maxLength}
 			/>
 		</div>
 	);
