@@ -2182,38 +2182,41 @@ function App() {
 
 								{/* Category Picker in Popup */}
 								{showCategoryPickerInPopup && (
-									<div
-										className="category-popup popup-inline"
-										onClick={(e) => e.stopPropagation()}
-									>
-										<div className="category-header">
-											<h3>Choose Category</h3>
-											<button className="close-popup" onClick={() => setShowCategoryPickerInPopup(false)}>✕</button>
-										</div>
-										<div className="category-list">
-											{categories.map((cat) => (
-												<button
-													key={cat.id}
-													className="category-option"
-													style={{ borderLeftColor: cat.color, backgroundColor: cat.color }}
-													onClick={() => {
-														setEditingTaskCategory(cat.id);
-														setShowCategoryPickerInPopup(false);
-													}}
-												>
-													<span className="category-name">#{cat.name.toLowerCase()}</span>
-												</button>
-											))}
-										</div>
-										<button
-											className="manage-categories-btn"
-											onClick={() => {
-												setShowCategoryManager(true);
-												setShowCategoryPickerInPopup(false);
-											}}
+									<div className="modal-overlay" onClick={() => setShowCategoryPickerInPopup(false)}>
+										<div
+											className="category-popup"
+											onClick={(e) => e.stopPropagation()}
 										>
-											⚙️ Manage Categories
-										</button>
+											<div className="category-header">
+												<h3>Choose Category</h3>
+												<button className="close-popup" onClick={() => setShowCategoryPickerInPopup(false)}>✕</button>
+											</div>
+											<div className="category-list">
+												{categories.map((cat) => (
+													<button
+														key={cat.id}
+														className="category-option"
+														style={{ borderLeftColor: cat.color, backgroundColor: cat.color }}
+														onClick={() => {
+															setEditingTaskCategory(cat.id);
+															setShowCategoryPickerInPopup(false);
+														}}
+													>
+														<span className="category-name">#{cat.name.toLowerCase()}</span>
+													</button>
+												))}
+											</div>
+											<button
+												className="manage-categories-btn"
+												onClick={() => {
+													setShowCategoryManager(true);
+													setShowCategoryPickerInPopup(false);
+												}}
+											>
+												⚙️ Manage Categories
+											</button>
+											<p className="category-tip">💡 Tip: Type #{categories[0]?.name.toLowerCase()} in your task to auto-tag!</p>
+										</div>
 									</div>
 								)}
 							</div>
