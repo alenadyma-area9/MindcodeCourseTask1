@@ -17,16 +17,44 @@ const REPEAT_OPTIONS = [
 	{ value: 'monthly', label: 'Monthly' }
 ];
 
-const AVAILABLE_COLORS = [
-	'#FFC0CB',
-	'#C2E0C2',
-	'#AEC8C8',
-	'#D8BFD8',
-	'#FFD39B',
-	'#CCDDEE',
-	'#FFF0B5',
-	'#EADFCD',
+// Full color palette: 24 colors organized by shade
+// Order: All Medium shades → All Mid-Light shades → All Light shades
+const ALL_COLORS = [
+	// Shade 3 (Medium) - Red, Pink, Blue, Green, Purple, Orange, Yellow, Grey
+	'#F29B9B', '#F6A9CA', '#A8CFF7', '#9FDBA8', '#BFA8EC', '#FFC190', '#FFE88C', '#CCCCCC',
+	// Shade 2 (Mid-Light) - Red, Pink, Blue, Green, Purple, Orange, Yellow, Grey
+	'#F9C8C8', '#FACCE0', '#C9E2FA', '#C4ECCB', '#D8C9F4', '#FFDABF', '#FFF1BF', '#E3E3E3',
+	// Shade 1 (Light) - Red, Pink, Blue, Green, Purple, Orange, Yellow, Grey
+	'#FDE6E6', '#FDEAF2', '#E7F2FD', '#E6F7EA', '#F0E8FB', '#FFF1E6', '#FFF9E6', '#F6F6F6',
 ];
+
+// Get 8 available colors, prioritizing unused ones
+function getAvailableColors(usedColors: string[]): string[] {
+	const usedSet = new Set(usedColors.map(c => c.toUpperCase()));
+
+	// Find unused colors
+	const unusedColors = ALL_COLORS.filter(color => !usedSet.has(color.toUpperCase()));
+
+	// If we have 8 or more unused, return first 8
+	if (unusedColors.length >= 8) {
+		return unusedColors.slice(0, 8);
+	}
+
+	// If less than 8 unused, add used colors to fill up to 8
+	const result = [...unusedColors];
+	const usedColors_list = ALL_COLORS.filter(color => usedSet.has(color.toUpperCase()));
+
+	while (result.length < 8 && usedColors_list.length > 0) {
+		result.push(usedColors_list[result.length - unusedColors.length]);
+	}
+
+	// If still less than 8 (very rare case), repeat from ALL_COLORS
+	while (result.length < 8) {
+		result.push(ALL_COLORS[result.length % ALL_COLORS.length]);
+	}
+
+	return result;
+}
 
 function App() {
 	// Local state for the text currently being typed
@@ -52,7 +80,7 @@ function App() {
 	const [showCategoryManager, setShowCategoryManager] = useState(false);
 	const [editingCategory, setEditingCategory] = useState<CategoryItem | null>(null);
 	const [newCategoryName, setNewCategoryName] = useState('');
-	const [newCategoryColor, setNewCategoryColor] = useState(AVAILABLE_COLORS[0]);
+	const [newCategoryColor, setNewCategoryColor] = useState('');
 	const [deleteCategoryId, setDeleteCategoryId] = useState<string | null>(null);
 	const [showDescriptionModal, setShowDescriptionModal] = useState(false);
 	const [description, setDescription] = useState('');
@@ -187,6 +215,14 @@ function App() {
 			document.removeEventListener('mousedown', handleClickOutside);
 		};
 	}, [showReminderPicker, showCategoryPicker, showReminderPickerInPopup, showCategoryPickerInPopup, showViewDropdown, showMoreOptions, isEditingDescription]);
+
+	// Set initial color when opening category manager
+	useEffect(() => {
+		if (showCategoryManager && !newCategoryColor && !editingCategory) {
+			const availableColors = getAvailableColors(categories.map(c => c.color));
+			setNewCategoryColor(availableColors[0]);
+		}
+	}, [showCategoryManager, categories, newCategoryColor, editingCategory]);
 
 	const handleAdd = () => {
 		// Remove hashtags from text before saving
@@ -446,7 +482,9 @@ function App() {
 	const resetCategoryForm = () => {
 		setEditingCategory(null);
 		setNewCategoryName('');
-		setNewCategoryColor(AVAILABLE_COLORS[0]);
+		// Set to first available color
+		const availableColors = getAvailableColors(categories.map(c => c.color));
+		setNewCategoryColor(availableColors[0]);
 	};
 
 	const handleDragStart = (e: React.DragEvent, index: number) => {
@@ -2371,14 +2409,17 @@ function App() {
 
 							<div className="form-field">
 								<div className="color-picker-grid">
-									{AVAILABLE_COLORS.map(color => (
-										<button
-											key={color}
-											className={`color-box ${newCategoryColor === color ? 'selected' : ''}`}
-											style={{ backgroundColor: color }}
-											onClick={() => setNewCategoryColor(color)}
-										/>
-									))}
+									{(() => {
+										const availableColors = getAvailableColors(categories.map(c => c.color));
+										return availableColors.map(color => (
+											<button
+												key={color}
+												className={`color-box ${newCategoryColor === color ? 'selected' : ''}`}
+												style={{ backgroundColor: color }}
+												onClick={() => setNewCategoryColor(color)}
+											/>
+										));
+									})()}
 								</div>
 							</div>
 

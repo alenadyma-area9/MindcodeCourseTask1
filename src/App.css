@@ -965,7 +965,7 @@
 }
 
 .delete-confirm-overlay {
-	z-index: 5000;
+	z-index: 15000;
 }
 
 .category-picker-in-popup-overlay {
