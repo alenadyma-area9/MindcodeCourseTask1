@@ -118,6 +118,18 @@ function App() {
 	const [showUnarchiveAllConfirm, setShowUnarchiveAllConfirm] = useState(false);
 	const [showResetCategoriesConfirm, setShowResetCategoriesConfirm] = useState(false);
 
+	// Notification state
+	interface Notification {
+		id: string;
+		taskId: string;
+		title: string;
+		description: string;
+		time: string;
+		categoryId?: string;
+	}
+	const [notifications, setNotifications] = useState<Notification[]>([]);
+	const [shownNotifications, setShownNotifications] = useState<Set<string>>(new Set());
+
 	// Global state from our Zustand store
 	const { savedTexts, categories, addText, deleteText, toggleComplete, archiveTask, unarchiveTask, updateText, addCategory, updateCategory, deleteCategory, reorderCategories, resetCategories } = useTextStore();
 
@@ -350,6 +362,70 @@ function App() {
 			setNewCategoryColor(availableColors[0]);
 		}
 	}, [showCategoryManager, categories, newCategoryColor, editingCategory]);
+
+	// Check for due tasks and show notifications
+	useEffect(() => {
+		const checkDueTasks = () => {
+			const now = new Date();
+
+			savedTexts.forEach(task => {
+				// Only show notifications for non-completed, non-archived tasks with reminders
+				if (task.reminder && !task.completed && !task.archived) {
+					const dueDate = new Date(task.reminder);
+					const timeDiff = dueDate.getTime() - now.getTime();
+
+					// Show notification if due time has been reached (within last minute to current time)
+					// This gives a 1-minute window to catch the notification
+					if (timeDiff <= 0 && timeDiff > -60000) {
+						// Check if we haven't shown this notification yet
+						const notificationKey = `${task.id}-${dueDate.getTime()}`;
+						if (!shownNotifications.has(notificationKey)) {
+							// Extract plain text description (max 100 chars)
+							const descriptionSnippet = task.description
+								? task.description
+									.replace(/\*\*(.+?)\*\*/g, '$1') // Remove bold
+									.replace(/_(.+?)_/g, '$1') // Remove italic
+									.replace(/\[(.+?)\]\((.+?)\)/g, '$1') // Keep link text only
+									.replace(/^[•\-\d]+[\.\s]+/gm, '') // Remove list markers
+									.replace(/\n/g, ' ') // Replace line breaks with spaces
+									.trim()
+									.substring(0, 100) + (task.description.length > 100 ? '...' : '')
+								: '';
+
+							const timeStr = dueDate.toLocaleTimeString('en-US', {
+								hour: '2-digit',
+								minute: '2-digit',
+								hour12: false
+							});
+
+							const notification: Notification = {
+								id: notificationKey,
+								taskId: task.id,
+								title: task.text,
+								description: descriptionSnippet,
+								time: timeStr,
+								categoryId: task.categoryId
+							};
+
+							setNotifications(prev => [...prev, notification]);
+							setShownNotifications(prev => new Set(prev).add(notificationKey));
+
+							// Auto-dismiss after 10 seconds
+							setTimeout(() => {
+								setNotifications(prev => prev.filter(n => n.id !== notificationKey));
+							}, 10000);
+						}
+					}
+				}
+			});
+		};
+
+		// Check immediately on mount and every 30 seconds
+		checkDueTasks();
+		const interval = setInterval(checkDueTasks, 30000);
+
+		return () => clearInterval(interval);
+	}, [savedTexts]);
 
 	// Smart auto-expand/collapse logic for date groups and categories
 	// Only applies to groups that haven't been manually toggled
@@ -1060,6 +1136,10 @@ function App() {
 
 	const cancelResetCategories = () => {
 		setShowResetCategoriesConfirm(false);
+	};
+
+	const dismissNotification = (notificationId: string) => {
+		setNotifications(prev => prev.filter(n => n.id !== notificationId));
 	};
 
 	const formatReminderTime = (isoString: string) => {
@@ -2942,6 +3022,42 @@ function App() {
 					</div>
 				</div>
 			)}
+
+			{/* Snackbar Notifications */}
+			<div className="snackbar-container">
+				{notifications.map((notification) => {
+					const category = notification.categoryId ? getCategoryById(notification.categoryId) : null;
+					return (
+						<div key={notification.id} className="snackbar">
+							<div className="snackbar-content">
+								<div className="snackbar-header">
+									<span className="snackbar-icon">⏰</span>
+									<span className="snackbar-time">{notification.time}</span>
+									{category && (
+										<span
+											className="snackbar-category"
+											style={{ backgroundColor: category.color }}
+										>
+											#{category.name.toLowerCase()}
+										</span>
+									)}
+								</div>
+								<div className="snackbar-title">{notification.title}</div>
+								{notification.description && (
+									<div className="snackbar-description">{notification.description}</div>
+								)}
+							</div>
+							<button
+								className="snackbar-dismiss"
+								onClick={() => dismissNotification(notification.id)}
+								aria-label="Dismiss notification"
+							>
+								✕
+							</button>
+						</div>
+					);
+				})}
+			</div>
 		</div>
 	);
 }
