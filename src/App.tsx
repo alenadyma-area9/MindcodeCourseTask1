@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 import Select from 'react-select';
@@ -128,7 +128,8 @@ function App() {
 		categoryId?: string;
 	}
 	const [notifications, setNotifications] = useState<Notification[]>([]);
-	const [shownNotifications, setShownNotifications] = useState<Set<string>>(new Set());
+	const shownNotificationsRef = useRef<Set<string>>(new Set());
+	const [repeatAnimatingTaskId, setRepeatAnimatingTaskId] = useState<string | null>(null);
 
 	// Global state from our Zustand store
 	const { savedTexts, categories, addText, deleteText, toggleComplete, archiveTask, unarchiveTask, updateText, addCategory, updateCategory, deleteCategory, reorderCategories, resetCategories } = useTextStore();
@@ -355,6 +356,106 @@ function App() {
 		editingTaskDescription, description
 	]);
 
+	// Handle Ctrl+Enter globally for main input (when not in a modal)
+	useEffect(() => {
+		const handleCtrlEnterMainInput = (event: KeyboardEvent) => {
+			// Only handle if no modals are open
+			if (viewingTask || showDescriptionModal || showCategoryManager || showReminderPicker || showCategoryPicker) {
+				return;
+			}
+
+			if (event.key === 'Enter' && event.ctrlKey) {
+				const canSubmit = currentText.replace(/#\w+/g, '').trim() || description.trim();
+				if (canSubmit) {
+					event.preventDefault();
+					handleAdd();
+				}
+			}
+		};
+
+		document.addEventListener('keydown', handleCtrlEnterMainInput);
+		return () => {
+			document.removeEventListener('keydown', handleCtrlEnterMainInput);
+		};
+	}, [currentText, description, viewingTask, showDescriptionModal, showCategoryManager, showReminderPicker, showCategoryPicker]);
+
+	// Handle Ctrl+Enter in View Task modal to save and close
+	useEffect(() => {
+		if (!viewingTask) return;
+
+		const handleCtrlEnter = (event: KeyboardEvent) => {
+			if (event.key === 'Enter' && event.ctrlKey) {
+				event.preventDefault();
+				const task = savedTexts.find(t => t.id === viewingTask);
+				if (task) {
+					// Save changes
+					updateText(
+						task.id,
+						editingTaskTitle,
+						editingTaskReminder,
+						editingTaskCategory,
+						editingTaskReminder ? editingTaskRepeat : undefined,
+						editingTaskDescription || undefined
+					);
+					setViewingTask(null);
+					setShowReminderPickerInPopup(false);
+					setShowCategoryPickerInPopup(false);
+					setIsEditingDescription(false);
+				}
+			}
+		};
+
+		document.addEventListener('keydown', handleCtrlEnter);
+		return () => {
+			document.removeEventListener('keydown', handleCtrlEnter);
+		};
+	}, [viewingTask, savedTexts, editingTaskTitle, editingTaskReminder, editingTaskCategory, editingTaskRepeat, editingTaskDescription, updateText]);
+
+	// Handle Ctrl+Enter in main Reminder picker to apply
+	useEffect(() => {
+		if (!showReminderPicker) return;
+
+		const handleCtrlEnter = (event: KeyboardEvent) => {
+			if (event.key === 'Enter' && event.ctrlKey && customDate) {
+				event.preventDefault();
+				setCustomReminder();
+			}
+		};
+
+		document.addEventListener('keydown', handleCtrlEnter);
+		return () => {
+			document.removeEventListener('keydown', handleCtrlEnter);
+		};
+	}, [showReminderPicker, customDate, customTime, selectedRepeat]);
+
+	// Handle Ctrl+Enter in Reminder picker in popup (task view modal) to apply
+	useEffect(() => {
+		if (!showReminderPickerInPopup || !viewingTask) return;
+
+		const handleCtrlEnter = (event: KeyboardEvent) => {
+			if (event.key === 'Enter' && event.ctrlKey && customDate) {
+				event.preventDefault();
+				const dateStr = customDate.toISOString().split('T')[0];
+				let reminderDate: Date;
+
+				if (customTime) {
+					reminderDate = new Date(`${dateStr}T${customTime}:00`);
+				} else {
+					reminderDate = new Date(`${dateStr}T09:00:01`);
+				}
+
+				setEditingTaskReminder(reminderDate.toISOString());
+				setShowReminderPickerInPopup(false);
+				setShowAdvancedReminder(false);
+			}
+		};
+
+		document.addEventListener('keydown', handleCtrlEnter);
+		return () => {
+			document.removeEventListener('keydown', handleCtrlEnter);
+		};
+	}, [showReminderPickerInPopup, viewingTask, customDate, customTime]);
+
 	// Set initial color when opening category manager
 	useEffect(() => {
 		if (showCategoryManager && !newCategoryColor && !editingCategory) {
@@ -379,7 +480,7 @@ function App() {
 					if (timeDiff <= 0 && timeDiff > -60000) {
 						// Check if we haven't shown this notification yet
 						const notificationKey = `${task.id}-${dueDate.getTime()}`;
-						if (!shownNotifications.has(notificationKey)) {
+						if (!shownNotificationsRef.current.has(notificationKey)) {
 							// Extract plain text description (max 100 chars)
 							const descriptionSnippet = task.description
 								? task.description
@@ -408,7 +509,7 @@ function App() {
 							};
 
 							setNotifications(prev => [...prev, notification]);
-							setShownNotifications(prev => new Set(prev).add(notificationKey));
+							shownNotificationsRef.current.add(notificationKey);
 
 							// Auto-dismiss after 10 seconds
 							setTimeout(() => {
@@ -621,8 +722,20 @@ function App() {
 				}
 			}
 
-			// Update task with next occurrence date (stays incomplete)
-			updateText(taskId, task.text, nextDueDate.toISOString(), task.categoryId, task.repeat, task.description);
+			// First mark as completed (show checkbox checked)
+			toggleComplete(taskId);
+
+			// After a brief moment, update to next occurrence and mark as incomplete
+			setTimeout(() => {
+				updateText(taskId, task.text, nextDueDate.toISOString(), task.categoryId, task.repeat, task.description);
+				toggleComplete(taskId); // Toggle back to incomplete
+
+				// Add animation highlight to show auto-repeat behavior
+				setRepeatAnimatingTaskId(taskId);
+				setTimeout(() => {
+					setRepeatAnimatingTaskId(null);
+				}, 1500); // Animation lasts 1.5 seconds
+			}, 400);
 		} else {
 			// Normal toggle (no repeat, or uncompleting a task)
 			toggleComplete(taskId);
@@ -1887,7 +2000,7 @@ function App() {
 											{(task.categoryId || task.reminder) && (
 												<div className="task-meta">
 													{task.reminder && (
-														<span className={`task-reminder ${getReminderUrgency(task.reminder)}`}>
+														<span className={`task-reminder ${getReminderUrgency(task.reminder)} ${repeatAnimatingTaskId === task.id ? 'repeat-animating' : ''}`}>
 															⏰ {formatReminderTime(task.reminder)}{formatRepeat(task.repeat)}
 														</span>
 													)}
@@ -2078,7 +2191,7 @@ function App() {
 															)}
 															{task.reminder && (
 																<div className="task-meta">
-																	<span className={`task-reminder ${getReminderUrgency(task.reminder)}`}>
+																	<span className={`task-reminder ${getReminderUrgency(task.reminder)} ${repeatAnimatingTaskId === task.id ? 'repeat-animating' : ''}`}>
 																		⏰ {formatReminderTime(task.reminder)}{formatRepeat(task.repeat)}
 																	</span>
 																</div>
@@ -2138,7 +2251,7 @@ function App() {
 										{(task.categoryId || task.reminder) && (
 											<div className="task-meta">
 												{task.reminder && (
-													<span className={`task-reminder ${getReminderUrgency(task.reminder)}`}>
+													<span className={`task-reminder ${getReminderUrgency(task.reminder)} ${repeatAnimatingTaskId === task.id ? 'repeat-animating' : ''}`}>
 														⏰ {formatReminderTime(task.reminder)}{formatRepeat(task.repeat)}
 													</span>
 												)}
@@ -2484,7 +2597,9 @@ function App() {
 											}
 										}}
 									>
-										<span>⏰ {formatReminderTime(editingTaskReminder)}{formatRepeat(editingTaskRepeat)}</span>
+										<span className={repeatAnimatingTaskId === task.id ? 'repeat-animating-popup' : ''}>
+											⏰ {formatReminderTime(editingTaskReminder)}{formatRepeat(editingTaskRepeat)}
+										</span>
 										<button
 											className="meta-remove"
 											onClick={(e) => {
@@ -2551,6 +2666,23 @@ function App() {
 									<div
 										className="reminder-popup popup-inline"
 										onClick={(e) => e.stopPropagation()}
+										onKeyDown={(e) => {
+											if (e.key === 'Enter' && e.ctrlKey && customDate) {
+												e.preventDefault();
+												const dateStr = customDate.toISOString().split('T')[0];
+												let reminderDate: Date;
+
+												if (customTime) {
+													reminderDate = new Date(`${dateStr}T${customTime}:00`);
+												} else {
+													reminderDate = new Date(`${dateStr}T09:00:01`);
+												}
+
+												setEditingTaskReminder(reminderDate.toISOString());
+												setShowReminderPickerInPopup(false);
+												setShowAdvancedReminder(false);
+											}
+										}}
 									>
 										<div className="reminder-header">
 											<h3>Reminder</h3>
@@ -3028,7 +3160,14 @@ function App() {
 				{notifications.map((notification) => {
 					const category = notification.categoryId ? getCategoryById(notification.categoryId) : null;
 					return (
-						<div key={notification.id} className="snackbar">
+						<div
+							key={notification.id}
+							className="snackbar"
+							onClick={() => {
+								setViewingTask(notification.taskId);
+								dismissNotification(notification.id);
+							}}
+						>
 							<div className="snackbar-content">
 								<div className="snackbar-header">
 									<span className="snackbar-icon">⏰</span>
@@ -3049,7 +3188,10 @@ function App() {
 							</div>
 							<button
 								className="snackbar-dismiss"
-								onClick={() => dismissNotification(notification.id)}
+								onClick={(e) => {
+									e.stopPropagation();
+									dismissNotification(notification.id);
+								}}
 								aria-label="Dismiss notification"
 							>
 								✕

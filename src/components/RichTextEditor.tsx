@@ -10,6 +10,30 @@ interface RichTextEditorProps {
 
 export default function RichTextEditor({ value, onChange, placeholder, autoFocus, maxLength }: RichTextEditorProps) {
 	const textareaRef = useRef<HTMLTextAreaElement>(null);
+	const [isFocused, setIsFocused] = useState(false);
+
+	// Auto-resize textarea based on content
+	const autoResize = () => {
+		const textarea = textareaRef.current;
+		if (textarea) {
+			textarea.style.height = 'auto';
+			const scrollHeight = textarea.scrollHeight;
+
+			if (isFocused) {
+				// When focused, cap at max-height and let it scroll
+				const maxHeight = window.innerWidth <= 480 ? 300 : 400;
+				textarea.style.height = Math.min(scrollHeight, maxHeight) + 'px';
+			} else {
+				// When not focused, expand to fit all content
+				textarea.style.height = scrollHeight + 'px';
+			}
+		}
+	};
+
+	// Auto-resize on mount and when value changes (but not when focused)
+	useEffect(() => {
+		autoResize();
+	}, [value, isFocused]);
 
 	// Auto-focus on mount if autoFocus is true
 	useEffect(() => {
@@ -146,7 +170,7 @@ export default function RichTextEditor({ value, onChange, placeholder, autoFocus
 	};
 
 	return (
-		<div className="rich-text-editor">
+		<div className={`rich-text-editor ${isFocused ? 'editor-focused' : ''}`}>
 			<div className="editor-toolbar">
 				<button type="button" className="toolbar-btn" onClick={handleBold} title="Bold">
 					<strong>B</strong>
@@ -174,7 +198,14 @@ export default function RichTextEditor({ value, onChange, placeholder, autoFocus
 				className="editor-textarea"
 				value={value}
 				onChange={(e) => onChange(e.target.value)}
+				onInput={autoResize}
 				onPaste={handlePaste}
+				onFocus={() => setIsFocused(true)}
+				onBlur={() => {
+					setIsFocused(false);
+					// Reset height after blur so it can expand naturally
+					setTimeout(() => autoResize(), 0);
+				}}
 				placeholder={placeholder}
 				maxLength={maxLength}
 			/>

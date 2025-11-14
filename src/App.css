@@ -524,9 +524,9 @@
 .clickable-separator {
 	cursor: pointer;
 	transition: background 0.2s;
-	padding: 0.75rem 0.5rem;
-	margin-left: -0.5rem;
-	margin-right: -0.5rem;
+	padding: 0.75rem 1rem;
+	margin-left: 0;
+	margin-right: 0;
 	border-radius: 6px;
 }
 
@@ -603,9 +603,9 @@
 	display: flex;
 	align-items: center;
 	justify-content: space-between;
-	padding: 0.75rem 0.5rem;
-	margin-left: -0.5rem;
-	margin-right: -0.5rem;
+	padding: 0.75rem 1rem;
+	margin-left: 0;
+	margin-right: 0;
 	margin-bottom: 0.75rem;
 	border-bottom: 2px solid #DDDDDD;
 	background: transparent;
@@ -691,6 +691,87 @@
 
 .task-item.completed .task-reminder {
 	opacity: 0.8;
+}
+
+/* Repeating task animation - highlights due date when auto-unchecked */
+.task-reminder.repeat-animating {
+	animation: repeatPulse 1.5s ease-in-out;
+	display: inline-block;
+	padding: 2px 4px;
+	border-radius: 4px;
+}
+
+.repeat-animating-popup {
+	animation: repeatPulsePopup 1.5s ease-in-out;
+	display: inline-block;
+	padding: 2px 4px;
+	border-radius: 4px;
+}
+
+@keyframes repeatPulse {
+	0% {
+		transform: scale(1);
+		background: rgba(0, 154, 97, 0.15);
+		color: #006642;
+		font-weight: 600;
+	}
+	15% {
+		transform: scale(1.15);
+		background: rgba(0, 154, 97, 0.25);
+		color: #004d32;
+		font-weight: 700;
+	}
+	30% {
+		transform: scale(1);
+		background: rgba(0, 154, 97, 0.15);
+	}
+	50% {
+		transform: scale(1.15);
+		background: rgba(0, 154, 97, 0.25);
+		color: #004d32;
+		font-weight: 700;
+	}
+	70% {
+		transform: scale(1);
+		background: rgba(0, 154, 97, 0.15);
+	}
+	100% {
+		transform: scale(1);
+		background: transparent;
+	}
+}
+
+@keyframes repeatPulsePopup {
+	0% {
+		transform: scale(1);
+		background: rgba(0, 154, 97, 0.2);
+		color: #006642;
+		font-weight: 700;
+	}
+	15% {
+		transform: scale(1.15);
+		background: rgba(0, 154, 97, 0.35);
+		color: #004d32;
+		font-weight: 700;
+	}
+	30% {
+		transform: scale(1);
+		background: rgba(0, 154, 97, 0.2);
+	}
+	50% {
+		transform: scale(1.15);
+		background: rgba(0, 154, 97, 0.35);
+		color: #004d32;
+		font-weight: 700;
+	}
+	70% {
+		transform: scale(1);
+		background: rgba(0, 154, 97, 0.2);
+	}
+	100% {
+		transform: scale(1);
+		background: transparent;
+	}
 }
 
 .checkbox-wrapper {
@@ -2324,14 +2405,13 @@
 	font-size: 1rem;
 	font-weight: 600;
 	cursor: pointer;
-	transition: opacity 0.2s, transform 0.2s;
+	transition: opacity 0.2s;
 	position: relative;
 	border-radius: 0 8px 8px 0;
 }
 
 .input-container button:hover:not(:disabled) {
 	opacity: 0.9;
-	transform: translateY(-1px);
 }
 
 .input-container button:disabled {
@@ -2380,14 +2460,14 @@
 	flex-direction: column;
 	gap: 0;
 	margin-top: 1rem;
-	border: 2px solid transparent;
+	border: 0px solid transparent;
 	border-radius: 8px;
 	transition: all 0.2s;
 }
 
 .rich-text-editor:focus-within {
-	border-color: #006642;
-	box-shadow: 0 0 0 3px rgba(0, 102, 66, 0.1);
+	border-color: transparent;
+	box-shadow: none;
 }
 
 .editor-toolbar {
@@ -2395,7 +2475,8 @@
 }
 
 .rich-text-editor:focus-within .editor-textarea {
-	border-color: transparent;
+	border-color: #006642;
+	box-shadow: 0 0 0 3px rgba(0, 102, 66, 0.1);
 }
 
 
@@ -2429,13 +2510,14 @@
 	background: #FFFFFF;
 	border-radius: 12px;
 	box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
-	max-width: 600px;
+	max-width: 650px;
 	width: 90%;
-	max-height: 85vh;
+	max-height: 90vh;
 	position: relative;
-	overflow-y: auto;
-	overflow-x: hidden;
+	overflow: hidden;
 	overscroll-behavior: contain;
+	display: flex;
+	flex-direction: column;
 }
 
 /* Force scrollbar to be inside the rounded corners */
@@ -2462,14 +2544,12 @@
 	align-items: flex-start;
 	gap: 0.75rem;
 	padding: 1rem 1rem 0.75rem 1rem;
-	position: sticky;
-	top: 0;
 	background: #FFFFFF;
 	z-index: 101;
 	border-radius: 12px 12px 0 0;
-	margin-bottom: 0.75rem;
 	border-bottom: 1px solid #F0F0F0;
 	overflow: visible;
+	flex-shrink: 0;
 }
 
 .task-details-header .checkbox-wrapper {
@@ -2557,25 +2637,60 @@
 }
 
 .task-details-description {
-	margin-bottom: 0.75rem;
-	padding: 0 1rem;
+	padding: 1rem 1rem 1rem 1rem;
+	flex: 1 1 auto;
+	overflow-y: auto;
+	overflow-x: hidden;
+	min-height: 0;
+	display: flex;
+	flex-direction: column;
+}
+
+/* When editor is focused, prevent description container from scrolling */
+.task-details-description:has(.editor-focused) {
+	overflow: visible;
+}
+
+/* When not editing (view mode), allow content to expand naturally */
+.task-details-description:not(:has(.rich-text-editor)) {
+	display: block;
 }
 
 .task-details-description .rich-text-editor {
 	margin-top: 0;
 	margin-bottom: 0.25rem;
+	display: flex;
+	flex-direction: column;
+	flex-shrink: 0;
+}
+
+/* When editor is focused, rich-text-editor takes controlled space */
+.task-details-description .editor-focused {
+	flex: 1;
+	min-height: 0;
 }
 
 .description-counter {
 	margin-top: 0.25rem;
+	text-align: right;
 }
 
 .task-details-description .editor-textarea {
-	min-height: 96px; /* ~4 lines */
-	max-height: 150px; /* ~6 lines - let modal scroll instead */
-	overflow-y: auto;
+	min-height: 80px;
+	max-height: none;
+	overflow: visible;
 	resize: none;
-	line-height: 1.6; /* Match view mode */
+	line-height: 1.6;
+	padding: 0.75rem;
+	box-sizing: border-box;
+	height: auto;
+}
+
+/* When editor is focused, make textarea scroll internally */
+.task-details-description .editor-focused .editor-textarea {
+	max-height: 400px !important;
+	overflow-y: auto !important;
+	overflow-x: hidden;
 }
 
 .task-details-description .editor-textarea::placeholder {
@@ -2583,9 +2698,10 @@
 }
 
 .task-description-view {
-	min-height: 96px;
-	max-height: 150px; /* ~6 lines - let modal scroll instead */
-	overflow-y: auto;
+	min-height: 80px;
+	max-height: none;
+	height: auto;
+	overflow: visible;
 	padding: 0.75rem;
 	border: 1px solid #EEEEEE;
 	border-radius: 8px;
@@ -2597,6 +2713,8 @@
 	color: #333333;
 	word-wrap: break-word;
 	text-align: left;
+	box-sizing: border-box;
+	width: 100%;
 }
 
 .task-description-view:hover {
@@ -2606,16 +2724,26 @@
 
 .task-description-view.empty {
 	display: flex;
-	align-items: flex-start;
-	justify-content: flex-start;
-	min-height: 60px;
-	text-align: left;
+	align-items: center;
+	justify-content: center;
+	min-height: 80px;
+	text-align: center;
+	background: #FAFAFA;
+	border-style: dashed;
+	padding: 0.75rem;
+	box-sizing: border-box;
+}
+
+.task-description-view.empty:hover {
+	background: #F0F0F0;
+	border-color: #CCCCCC;
 }
 
 .description-placeholder-inline {
-	color: #AAAAAA;
+	color: #999999;
 	font-style: italic;
-	text-align: left;
+	text-align: center;
+	font-size: 0.875rem;
 }
 
 .task-description-view a {
@@ -2799,8 +2927,10 @@
 	align-items: center;
 	gap: 0.5rem;
 	flex-wrap: wrap;
-	padding: 0 1rem 0.75rem 1rem;
-	position: static;
+	padding: 0.75rem 1rem;
+	background: #FFFFFF;
+	border-top: 1px solid #F0F0F0;
+	flex-shrink: 0;
 }
 
 .popup-inline {
@@ -2817,12 +2947,11 @@
 	align-items: center;
 	padding: 0.75rem 1rem 1rem 1rem;
 	border-top: 1px solid #EEEEEE;
-	position: sticky;
-	bottom: 0;
 	background: #FFFFFF;
 	z-index: 101;
 	border-radius: 0 0 12px 12px;
 	overflow: visible;
+	flex-shrink: 0;
 }
 
 .task-actions-left {
@@ -3032,14 +3161,25 @@
 	}
 
 	.task-details-description .editor-textarea {
-		min-height: 80px; /* ~4 lines on mobile with smaller font */
-		max-height: 130px; /* ~5-6 lines on mobile - let modal scroll */
+		min-height: 80px;
+		max-height: none;
+	}
+
+	/* When editor is focused on mobile, make textarea scroll internally */
+	.task-details-description .editor-focused .editor-textarea {
+		max-height: 300px !important;
+		overflow-y: auto !important;
+		overflow-x: hidden;
 	}
 
 	.task-description-view {
 		min-height: 80px;
-		max-height: 130px; /* ~5-6 lines on mobile - let modal scroll */
+		max-height: none;
 		font-size: 0.8125rem;
+	}
+
+	.task-description-view.empty {
+		min-height: 80px;
 	}
 
 	.char-counter {
@@ -3147,12 +3287,17 @@
 	pointer-events: all;
 	animation: slideUp 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
 	transition: all 0.3s ease;
+	cursor: pointer;
 }
 
 .snackbar:hover {
 	box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4),
 				0 4px 12px rgba(0, 0, 0, 0.3);
-	transform: translateY(-2px);
+	transform: translateY(-2px) scale(1.02);
+}
+
+.snackbar:active {
+	transform: translateY(-1px) scale(1.01);
 }
 
 @keyframes slideUp {
