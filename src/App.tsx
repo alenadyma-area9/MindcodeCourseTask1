@@ -438,80 +438,114 @@ function App() {
 		}
 	}, [currentView, savedTexts, manuallyToggledDateGroups, manuallyToggledCategories]); // Re-run when view or tasks change
 
-	// Handle toggle complete with repeating task logic
+	// Handle toggle complete with repeating task auto-advance
 	const handleToggleComplete = (taskId: string) => {
 		const task = savedTexts.find(t => t.id === taskId);
 
-		// If task has repeat pattern and is being completed (currently uncompleted)
+		// If task has repeat pattern and is being completed (uncompleted → completed)
 		if (task && !task.completed && task.repeat && task.repeat !== 'none' && task.reminder) {
 			const now = new Date();
 			const currentDueDate = new Date(task.reminder);
 			let nextDueDate: Date;
 
-			// Calculate next occurrence preserving original schedule
-			switch (task.repeat) {
-				case 'daily':
-					// Next occurrence: tomorrow at the same time
-					nextDueDate = new Date(now);
-					nextDueDate.setDate(now.getDate() + 1);
-					nextDueDate.setHours(currentDueDate.getHours());
-					nextDueDate.setMinutes(currentDueDate.getMinutes());
-					nextDueDate.setSeconds(currentDueDate.getSeconds());
-					break;
+			// Check if due date is in the past (before today)
+			const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+			const isPast = currentDueDate < todayStart;
 
-				case 'weekdays':
-					// Next weekday at the same time
-					nextDueDate = new Date(now);
-					nextDueDate.setDate(now.getDate() + 1);
-					// Skip weekends
-					while (nextDueDate.getDay() === 0 || nextDueDate.getDay() === 6) {
-						nextDueDate.setDate(nextDueDate.getDate() + 1);
-					}
-					nextDueDate.setHours(currentDueDate.getHours());
-					nextDueDate.setMinutes(currentDueDate.getMinutes());
-					nextDueDate.setSeconds(currentDueDate.getSeconds());
-					break;
+			if (isPast) {
+				// Due date is in the past → Jump to next FUTURE occurrence
+				switch (task.repeat) {
+					case 'daily':
+						nextDueDate = new Date(now);
+						nextDueDate.setDate(now.getDate() + 1);
+						nextDueDate.setHours(currentDueDate.getHours());
+						nextDueDate.setMinutes(currentDueDate.getMinutes());
+						nextDueDate.setSeconds(currentDueDate.getSeconds());
+						break;
 
-				case 'weekly':
-					// Next occurrence of the SAME day of week
-					const originalDayOfWeek = currentDueDate.getDay();
-					const currentDayOfWeek = now.getDay();
+					case 'weekdays':
+						nextDueDate = new Date(now);
+						nextDueDate.setDate(now.getDate() + 1);
+						// Skip weekends
+						while (nextDueDate.getDay() === 0 || nextDueDate.getDay() === 6) {
+							nextDueDate.setDate(nextDueDate.getDate() + 1);
+						}
+						nextDueDate.setHours(currentDueDate.getHours());
+						nextDueDate.setMinutes(currentDueDate.getMinutes());
+						nextDueDate.setSeconds(currentDueDate.getSeconds());
+						break;
 
-					nextDueDate = new Date(now);
-					let daysUntilNext = (originalDayOfWeek - currentDayOfWeek + 7) % 7;
-					if (daysUntilNext === 0) {
-						daysUntilNext = 7;
-					}
-					nextDueDate.setDate(now.getDate() + daysUntilNext);
-					nextDueDate.setHours(currentDueDate.getHours());
-					nextDueDate.setMinutes(currentDueDate.getMinutes());
-					nextDueDate.setSeconds(currentDueDate.getSeconds());
-					break;
+					case 'weekly':
+						// Next week, same day of week
+						const targetDayOfWeek = currentDueDate.getDay();
+						nextDueDate = new Date(now);
+						nextDueDate.setDate(now.getDate() + 1);
+						// Find next occurrence of that day
+						while (nextDueDate.getDay() !== targetDayOfWeek) {
+							nextDueDate.setDate(nextDueDate.getDate() + 1);
+						}
+						nextDueDate.setHours(currentDueDate.getHours());
+						nextDueDate.setMinutes(currentDueDate.getMinutes());
+						nextDueDate.setSeconds(currentDueDate.getSeconds());
+						break;
 
-				case 'monthly':
-					// Next month, SAME day of month
-					const originalDayOfMonth = currentDueDate.getDate();
-					nextDueDate = new Date(now);
+					case 'monthly':
+						// Next month, same day of month
+						const targetDayOfMonth = currentDueDate.getDate();
+						nextDueDate = new Date(now);
+						nextDueDate.setMonth(now.getMonth() + 1);
+						nextDueDate.setDate(targetDayOfMonth);
+						// Handle month-end edge cases
+						if (nextDueDate.getDate() !== targetDayOfMonth) {
+							nextDueDate.setDate(0);
+						}
+						nextDueDate.setHours(currentDueDate.getHours());
+						nextDueDate.setMinutes(currentDueDate.getMinutes());
+						nextDueDate.setSeconds(currentDueDate.getSeconds());
+						break;
 
-					nextDueDate.setMonth(now.getMonth() + 1);
-					nextDueDate.setDate(originalDayOfMonth);
+					default:
+						toggleComplete(taskId);
+						return;
+				}
+			} else {
+				// Due date is today or future → Advance by 1 interval
+				switch (task.repeat) {
+					case 'daily':
+						nextDueDate = new Date(currentDueDate);
+						nextDueDate.setDate(currentDueDate.getDate() + 1);
+						break;
 
-					if (nextDueDate.getDate() !== originalDayOfMonth) {
-						nextDueDate.setDate(0);
-					}
+					case 'weekdays':
+						nextDueDate = new Date(currentDueDate);
+						nextDueDate.setDate(currentDueDate.getDate() + 1);
+						// Skip weekends
+						while (nextDueDate.getDay() === 0 || nextDueDate.getDay() === 6) {
+							nextDueDate.setDate(nextDueDate.getDate() + 1);
+						}
+						break;
 
-					nextDueDate.setHours(currentDueDate.getHours());
-					nextDueDate.setMinutes(currentDueDate.getMinutes());
-					nextDueDate.setSeconds(currentDueDate.getSeconds());
-					break;
+					case 'weekly':
+						nextDueDate = new Date(currentDueDate);
+						nextDueDate.setDate(currentDueDate.getDate() + 7);
+						break;
 
-				default:
-					// No repeat pattern, just toggle normally
-					toggleComplete(taskId);
-					return;
+					case 'monthly':
+						nextDueDate = new Date(currentDueDate);
+						nextDueDate.setMonth(currentDueDate.getMonth() + 1);
+						// Handle month-end edge cases
+						if (nextDueDate.getDate() !== currentDueDate.getDate()) {
+							nextDueDate.setDate(0);
+						}
+						break;
+
+					default:
+						toggleComplete(taskId);
+						return;
+				}
 			}
 
-			// Immediately advance to next period: update date then keep as incomplete
+			// Update task with next occurrence date (stays incomplete)
 			updateText(taskId, task.text, nextDueDate.toISOString(), task.categoryId, task.repeat, task.description);
 		} else {
 			// Normal toggle (no repeat, or uncompleting a task)
@@ -624,6 +658,11 @@ function App() {
 				reminderDate.setHours(10, 0, 0, 0); // 10:00 AM Saturday
 				break;
 		}
+
+		// Update customDate and customTime so reopening shows correct values
+		setCustomDate(reminderDate);
+		const timeStr = reminderDate.toTimeString().slice(0, 5);
+		setCustomTime(timeStr);
 
 		// Quick buttons always auto-apply and close the dialog
 		setSelectedReminder(reminderDate.toISOString());
@@ -1792,7 +1831,7 @@ function App() {
 											className="action-btn archive-btn"
 											onClick={() => task.archived ? unarchiveTask(task.id) : archiveTask(task.id)}
 										>
-											📥
+											{task.archived ? '📤' : '📥'}
 											<span className="action-tooltip">
 												{task.archived ? 'Unarchive task' : 'Archive task'}
 											</span>
@@ -1971,7 +2010,7 @@ function App() {
 															className="action-btn archive-btn"
 															onClick={() => task.archived ? unarchiveTask(task.id) : archiveTask(task.id)}
 														>
-															📥
+															{task.archived ? '📤' : '📥'}
 															<span className="action-tooltip">
 																{task.archived ? 'Unarchive task' : 'Archive task'}
 															</span>
@@ -2043,7 +2082,7 @@ function App() {
 										className="action-btn archive-btn"
 										onClick={() => task.archived ? unarchiveTask(task.id) : archiveTask(task.id)}
 									>
-										📥
+										{task.archived ? '📤' : '📥'}
 										<span className="action-tooltip">
 											{task.archived ? 'Unarchive task' : 'Archive task'}
 										</span>
@@ -2443,6 +2482,8 @@ function App() {
 												const now = new Date();
 												const reminderDate = new Date(now);
 												reminderDate.setHours(17, 0, 0, 0);
+												setCustomDate(reminderDate);
+												setCustomTime('17:00');
 												setEditingTaskReminder(reminderDate.toISOString());
 												setShowReminderPickerInPopup(false);
 											}}>
@@ -2454,6 +2495,8 @@ function App() {
 												const reminderDate = new Date(now);
 												reminderDate.setDate(now.getDate() + 1);
 												reminderDate.setHours(9, 0, 0, 0);
+												setCustomDate(reminderDate);
+												setCustomTime('09:00');
 												setEditingTaskReminder(reminderDate.toISOString());
 												setShowReminderPickerInPopup(false);
 											}}>
@@ -2466,6 +2509,8 @@ function App() {
 												const daysUntilSaturday = (6 - now.getDay() + 7) % 7 || 7;
 												reminderDate.setDate(now.getDate() + daysUntilSaturday);
 												reminderDate.setHours(10, 0, 0, 0);
+												setCustomDate(reminderDate);
+												setCustomTime('10:00');
 												setEditingTaskReminder(reminderDate.toISOString());
 												setShowReminderPickerInPopup(false);
 											}}>
@@ -2612,7 +2657,7 @@ function App() {
 											setViewingTask(null);
 										}}
 									>
-										📥
+										{task.archived ? '📤' : '📥'}
 										<span className="action-tooltip">
 											{task.archived ? 'Unarchive Task' : 'Archive Task'}
 										</span>

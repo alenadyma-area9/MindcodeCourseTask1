@@ -3,7 +3,7 @@
 	margin: 0 auto;
 	padding: 2rem;
 	text-align: center;
-	overflow-x: clip;
+	overflow-x: hidden;
 	min-height: 100vh;
 	display: flex;
 	flex-direction: column;
@@ -116,7 +116,7 @@
 	display: flex;
 	flex-direction: column;
 	min-height: 0;
-	overflow: visible;
+	overflow: hidden;
 }
 
 .task-progress-row {
@@ -484,11 +484,9 @@
 	padding-top: 3rem;
 	margin: 0 -2rem;
 	margin-top: -2rem;
-	min-height: 100px;
 	flex: 1;
 	overflow-y: auto;
-	overflow-x: clip;
-	scrollbar-gutter: stable;
+	overflow-x: hidden;
 }
 
 .empty-state {
@@ -704,6 +702,7 @@
 	border-radius: 4px;
 	transition: background 0.2s;
 	flex-shrink: 0;
+	overflow: visible;
 }
 
 .checkbox-wrapper:hover {
@@ -778,7 +777,9 @@
 
 .checkbox-tooltip {
 	left: 50%;
-	transform: translateX(-50%);
+	top: calc(100% + 0.5rem);
+	bottom: auto;
+	margin-bottom: 0;
 }
 
 .action-tooltip {
@@ -2478,10 +2479,10 @@
 }
 
 .task-details-header .checkbox-tooltip {
-	left: calc(100% + 0.5rem);
-	right: auto;
-	bottom: 50%;
-	transform: translateY(50%);
+	left: 50%;
+	top: calc(100% + 0.5rem);
+	bottom: auto;
+	transform: none;
 	margin-bottom: 0;
 }
 
