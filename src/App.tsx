@@ -464,6 +464,8 @@ function App() {
 		}
 	}, [showCategoryManager, categories, newCategoryColor, editingCategory]);
 
+
+
 	// Check for due tasks and show notifications
 	useEffect(() => {
 		const checkDueTasks = () => {
@@ -545,7 +547,7 @@ function App() {
 					groups.noDueDate.length > 0
 				].filter(Boolean).length;
 
-				// If only "TASKS WITH NO DUE DATE" group exists, expand it
+				// If only "NO DUE DATE" group exists, expand it
 				if (groupCount === 1 && groups.noDueDate.length > 0 && !manuallyToggledDateGroups.has('noDueDate')) {
 					newExpanded.add('noDueDate');
 				}
@@ -2046,7 +2048,7 @@ function App() {
 													onClick={() => toggleDateGroupExpansion('overdue')}
 												>
 													<div className="separator-left">
-														<span className="separator-text">🔴 OVERDUE TASKS</span>
+														<span className="separator-text">🔴 OVERDUE</span>
 														<span className="separator-count">
 															(Remaining <span className="count-remaining overdue">{remaining}</span> / {total})
 														</span>
@@ -2068,7 +2070,7 @@ function App() {
 													onClick={() => toggleDateGroupExpansion('today')}
 												>
 													<div className="separator-left">
-														<span className="separator-text">🟠 TASKS DUE TODAY</span>
+														<span className="separator-text">🟠 DUE TODAY</span>
 														<span className="separator-count">
 															(Remaining <span className="count-remaining today">{remaining}</span> / {total})
 														</span>
@@ -2090,7 +2092,7 @@ function App() {
 													onClick={() => toggleDateGroupExpansion('soon')}
 												>
 													<div className="separator-left">
-														<span className="separator-text">🔵 TASKS DUE SOON</span>
+														<span className="separator-text">🔵 DUE SOON</span>
 														<span className="separator-count">
 															(Remaining <span className="count-remaining soon">{remaining}</span> / {total})
 														</span>
@@ -2112,7 +2114,7 @@ function App() {
 													onClick={() => toggleDateGroupExpansion('noDueDate')}
 												>
 													<div className="separator-left">
-														<span className="separator-text"><span className="grey-circle">⚫</span> TASKS WITH NO DUE DATE</span>
+														<span className="separator-text"><span className="grey-circle">⚫</span> NO DUE DATE</span>
 														<span className="separator-count">
 															(Remaining <span className="count-remaining no-date">{remaining}</span> / {total})
 														</span>
